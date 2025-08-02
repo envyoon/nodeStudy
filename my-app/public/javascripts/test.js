@@ -1,6 +1,17 @@
-function scwin_btn_onclick() {
-    const elem = document.getElementById("showInfo");
+function scwin_btn_onclick(value) {
 
-    console.log(elem);
+    if(value === 'pro'){
+        console.log("promise click");        
+
+    }
+    
+    if(value === 'asy'){
+        console.log("async click");
+    }
+
+    const elem = document.getElementById("showInfo");
+    
+
+    // console.log(elem);
     
 }
