@@ -8,9 +8,14 @@
   <h1>Hello World!</h1>
     <textarea id="showInfo"></textarea>
     <br>
-    <button id="btnPromise" onclick="scwin_btn_onclick('pro')" style="width:200px; height: 100px;">프로미스 버튼</button>
-    <button id="btnAsync" onclick="scwin_btn_onclick('asy')" style="width:200px; height: 100px;">어싱크 버튼</button>
+    <h2 id="btnName"></h2> 
+    <br>
+    <button id="btnPromise" onclick="btn_promise_onclick()" style="width:200px; height: 100px;">프로미스 버튼</button>
+    <button id="btnAsync" onclick="btn_async_onclick()" style="width:200px; height: 100px;">어싱크 버튼</button>
 
-    <script src="/javascripts/test.js"></script>
+    <div style='margin-top : 10px;' id="userList"></div>
+
+    <script src="/lib/axios.min.js"></script>
+    <script src="/javascripts/test.js"></script> 
 </body>
 </html>
