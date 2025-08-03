@@ -8,7 +8,7 @@ const logger = require('morgan');
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
 const getTestRouter = require('./routes/getTest');
-const timeOutRouter = require('./routes/timeOut');
+const timeOutRouter = require('./routes/timeout');
 const intervalRouter = require('./routes/interval');
 
 const app = express();
