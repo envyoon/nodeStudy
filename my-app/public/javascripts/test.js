@@ -4,7 +4,8 @@
  * 'async/await' 방식으로 가져오는 기능입니다.
  * id 값이 홀수인 데이터만 가지고 옵니다.
  */
-async function btn_async_onclick() {
+// async function btn_async_onclick() {
+const btn_async_onclick = async () => {
     
     /**
      * NOTE 
@@ -56,7 +57,7 @@ async function btn_async_onclick() {
  * 'Promise' 방식으로 가져오는 기능입니다.
  * id 값이 홀수인 데이터만 가지고 옵니다.
  */
-function btn_promise_onclick() {
+const btn_promise_onclick = () => {
     
     console.log("promise click");
 
