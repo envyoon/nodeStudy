@@ -1,5 +1,9 @@
-document.addEventListener('DOMContentLoaded', async() => {
-    console.log("timeout 실행됨");
+
+/**
+ * localhost:3000/timeout 경로로 접근 시 
+ * 3초뒤에 '이영희' 라는 이름을 가진 사람의 정보를 불러오는 기능입니다.
+ */
+document.addEventListener('DOMContentLoaded', async() => {    
     
     const response = await axios.get('/data/userList.json');
     const userJson = response.data.users;
