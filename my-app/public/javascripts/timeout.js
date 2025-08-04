@@ -1,10 +1,15 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const btnName = document.getElementById('btnName');
-    btnName.textContent = '3초 대기 중...';
+document.addEventListener('DOMContentLoaded', async() => {
+    console.log("timeout 실행됨");
     
+    const response = await axios.get('/data/userList.json');
+    const userJson = response.data.users;
+    const zeroHe = userJson.filter(user => user.name === '이영희');
+    const h2Name = document.getElementById('h2Name');
+
     setTimeout(() => {
-        btnName.textContent = '3초 후 실행됨!';
-        console.log('3초 후 실행됨');
+        h2Name.textContent = zeroHe.map(user =>
+            `${user.id} | ${user.name} | ${user.email} | ${user.isActive} | ${user.roles}`
+        );
     }, 3000);
 
 });
