@@ -1,74 +1,97 @@
 {
-"users": [
-{
-"id": 1,
-"name": "홍길동",
-"email": "hong1@example.com",
-"isActive": true,
-"roles": ["admin", "editor"]
-},
-{
-"id": 2,
-"name": "김철수",
-"email": "kim2@example.com",
-"isActive": false,
-"roles": ["viewer"]
-},
-{
-"id": 3,
-"name": "이영희",
-"email": "lee3@example.com",
-"isActive": true,
-"roles": ["editor"]
-},
-{
-"id": 4,
-"name": "박민수",
-"email": "park4@example.com",
-"isActive": false,
-"roles": ["viewer", "contributor"]
-},
-{
-"id": 5,
-"name": "최지연",
-"email": "choi5@example.com",
-"isActive": true,
-"roles": ["admin"]
-},
-{
-"id": 6,
-"name": "정우성",
-"email": "jung6@example.com",
-"isActive": true,
-"roles": ["editor", "contributor"]
-},
-{
-"id": 7,
-"name": "한서준",
-"email": "han7@example.com",
-"isActive": false,
-"roles": ["viewer"]
-},
-{
-"id": 8,
-"name": "유진아",
-"email": "yoo8@example.com",
-"isActive": true,
-"roles": ["contributor"]
-},
-{
-"id": 9,
-"name": "서지훈",
-"email": "seo9@example.com",
-"isActive": true,
-"roles": ["editor"]
-},
-{
-"id": 10,
-"name": "장하늘",
-"email": "jang10@example.com",
-"isActive": false,
-"roles": ["viewer"]
-}
-]
+   "users":[
+      {
+         "id":1,
+         "name":"홍길동",
+         "email":"hong1@example.com",
+         "isActive":true,
+         "roles":[
+            "admin",
+            "editor"
+         ]
+      },
+      {
+         "id":2,
+         "name":"김철수",
+         "email":"kim2@example.com",
+         "isActive":false,
+         "roles":[
+            "viewer"
+         ]
+      },
+      {
+         "id":3,
+         "name":"이영희",
+         "email":"lee3@example.com",
+         "isActive":true,
+         "roles":[
+            "editor"
+         ]
+      },
+      {
+         "id":4,
+         "name":"박민수",
+         "email":"park4@example.com",
+         "isActive":false,
+         "roles":[
+            "viewer",
+            "contributor"
+         ]
+      },
+      {
+         "id":5,
+         "name":"최지연",
+         "email":"choi5@example.com",
+         "isActive":true,
+         "roles":[
+            "admin"
+         ]
+      },
+      {
+         "id":6,
+         "name":"정우성",
+         "email":"jung6@example.com",
+         "isActive":true,
+         "roles":[
+            "editor",
+            "contributor"
+         ]
+      },
+      {
+         "id":7,
+         "name":"한서준",
+         "email":"han7@example.com",
+         "isActive":false,
+         "roles":[
+            "viewer"
+         ]
+      },
+      {
+         "id":8,
+         "name":"유진아",
+         "email":"yoo8@example.com",
+         "isActive":true,
+         "roles":[
+            "contributor"
+         ]
+      },
+      {
+         "id":9,
+         "name":"서지훈",
+         "email":"seo9@example.com",
+         "isActive":true,
+         "roles":[
+            "editor"
+         ]
+      },
+      {
+         "id":10,
+         "name":"장하늘",
+         "email":"jang10@example.com",
+         "isActive":false,
+         "roles":[
+            "viewer"
+         ]
+      }
+   ]
 }
