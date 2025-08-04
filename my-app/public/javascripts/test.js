@@ -4,7 +4,6 @@
  * 'async/await' 방식으로 가져오는 기능입니다.
  * id 값이 홀수인 데이터만 가지고 옵니다.
  */
-// async function btn_async_onclick() {
 const btn_async_onclick = async () => {
     
     /**
@@ -18,12 +17,14 @@ const btn_async_onclick = async () => {
      *      생각해보니 파일 읽어들이는게 fetch가 아니라 http 통신 기본이 fetch 였음..
      *      xmlHttpRequest, fetch, axios 이런게 http통신 할 때 사용하는것
      *      파일을 읽어들이는것에 국한되어있지 않음.
+     *  25.08.04
+     *      멍청하게 get방식으로 해서 post 방식으로 바꿈. 난 바보.
      */
 
     console.log("async click");
 
     try{
-        const response = await axios.get('/data/userList.json');
+        const response = await axios.post('/test/getUserData');
         const userJson = response.data.users;
         const oddUser = userJson.filter(user => user.id % 2 !== 0);
 
@@ -61,7 +62,7 @@ const btn_promise_onclick = () => {
     
     console.log("promise click");
 
-    const response = axios.get('/data/userList.json')
+    const response = axios.post('/test/getUserData')
         .then(function(res) {
             console.log('응답값 : ',res);
 
