@@ -5,7 +5,7 @@
  */
 document.addEventListener('DOMContentLoaded', async() => {    
     
-    const response = await axios.get('/data/userList.json');
+    const response = await axios.post('/timeout/getUserData');
     const userJson = response.data.users;
     const zeroHe = userJson.filter(user => user.name === '이영희');
     const h2Name = document.getElementById('h2Name');

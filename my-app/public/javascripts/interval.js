@@ -7,7 +7,7 @@ let intervalId;
 
 document.addEventListener('DOMContentLoaded', async() => {
 
-    const response = await axios.get('/data/userList.json');
+    const response = await axios.post('/timeout/getUserData');
     const userJson = response.data.users;
     const getViewer = userJson.filter((user) => user.roles.includes('viewer'));
 
