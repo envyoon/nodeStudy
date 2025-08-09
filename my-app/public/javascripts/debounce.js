@@ -24,10 +24,14 @@ document.addEventListener("DOMContentLoaded", () => {
      *      근데 화면 컨텐츠 못가져와서 등록 안될수도 있지 않을까?
      *      타이밍 이슈가 생기면 아무래도 window.onload로 변경하는게 나을 수도 
      * 
-     *  0. 시작할때 이벤트 리스너를 등록함
-     *  1. textarea를 클릭하면 키보드 이벤트 리스너를 등록함.
-     *  2. textarea의 포커스가 빠져나가면 키보드 이벤트 리스너를 제거함. (이때 windows.contents에 저장)
-     *  3. textarea에 값이 입력되면 디바운싱 처리를하여 windows.contents에 저장 (0.3초)
+     *      0. 시작할때 이벤트 리스너를 등록함
+     *      1. textarea를 클릭하면 키보드 이벤트 리스너를 등록함.
+     *      2. textarea의 포커스가 빠져나가면 키보드 이벤트 리스너를 제거함. (이때 windows.contents에 저장)
+     *      3. textarea에 값이 입력되면 디바운싱 처리를하여 windows.contents에 저장 (0.3초)
+     *      
+     *      *궁금한점*
+     *      근데 타임스탬프 값 말고는 textvalue값이 중첩될텐데 (입력하고 0.3초후에 마우스 커서 빼면..)
+     *      이거 뭐 냅둬도 되겠죠..? 음.. 뭔가 중복되는 textvalue찾는거 하면 복잡해질것같음.
      */
     window.contents = {
         "ysheo@inswave.com" : []
