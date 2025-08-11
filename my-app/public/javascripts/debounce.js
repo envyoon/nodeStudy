@@ -47,8 +47,6 @@ document.addEventListener("DOMContentLoaded", () => {
             clearTimeout(debounce);
         }
         debounce = setTimeout(() => {
-            // 입력끝나면 window.contents에 값 등록 해 주면 됨.
-            // console.log(el.value);        
             window.contents["ysheo@inswave.com"].push({textValue:el.value,timeStamp:timeUtil()});
         }, 300);
     };
@@ -62,8 +60,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // 포커스 해제 시 이벤트 리스너 제거
     el.addEventListener("blur", () => {
         console.log("포커스 해제됨");
-        // 포커스 해제되면 window.contents에 값 등록 해 주면 됨.
-        // console.log(el.value);
         window.contents["ysheo@inswave.com"].push({textValue:el.value,timeStamp:timeUtil()});
         el.removeEventListener("keydown", key);
     });
@@ -78,7 +74,7 @@ document.addEventListener("DOMContentLoaded", () => {
  * @returns {string} 현재 시간 문자열 (YYMMDDHHmmss)
  */
 const timeUtil = () => {
-    //역시 티스토리에서 가져다 쓰는게 짱이긴함 잘만들어놨네
+    
     const timestamp = new Date().getTime();
 
     date = new Date(timestamp); 
