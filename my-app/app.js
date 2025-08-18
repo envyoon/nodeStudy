@@ -4,7 +4,6 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 
-
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
 const getTestRouter = require('./routes/getTest');
@@ -12,6 +11,7 @@ const timeOutRouter = require('./routes/timeout');
 const intervalRouter = require('./routes/interval');
 const promiseRouter = require('./routes/promise');
 const debounceRouter = require('./routes/debounce');
+const previewRouter = require('./routes/preview');
 
 const app = express();
  
@@ -32,6 +32,7 @@ app.use('/timeout', timeOutRouter);
 app.use('/interval', intervalRouter);
 app.use('/promise', promiseRouter);
 app.use('/debounce', debounceRouter);
+app.use('/preview', previewRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
