@@ -39,7 +39,7 @@ router.post('/getData', function (req, res, next) {
                 console.log('워커 종료')
             });
 
-            // 실제 워커 처리 부분(메세지 전달)
+            // 실제 워커 처리 부분 (값 전달)
             worker.postMessage({
                 apiJson: data,
                 body: req.body,
