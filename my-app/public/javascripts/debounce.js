@@ -32,6 +32,12 @@ document.addEventListener("DOMContentLoaded", () => {
      *      *궁금한점*
      *      근데 타임스탬프 값 말고는 textvalue값이 중첩될텐데 (입력하고 0.3초후에 마우스 커서 빼면..)
      *      이거 뭐 냅둬도 되겠죠..? 음.. 뭔가 중복되는 textvalue찾는거 하면 복잡해질것같음.
+     *  2025.0.25
+     *      여기에 Kakao Login 기능을 추가하여서, window.contents에 로그인한 정보를 ysheo@inswave.com 대신 넣을 수 있게 처리 하여야 함.
+     *      0. 로그인이 되었는지, 안되었는지 체크 (세션이 있는지 없는지)
+     *      1. 로그인이 되었으면 디바운싱을 할 때 세션에 유저 정보를 넣어줘야함.
+     *      2. 다른 계정으로 로그인 했을 때 디바운싱을 할 때 다른 유저 정보를 넣어줘야함.
+     *      3. 이때 그전에 있던 window.contents 정보는 그대로 있어야함.
      */
     window.contents = {
         "ysheo@inswave.com" : []
@@ -47,7 +53,8 @@ document.addEventListener("DOMContentLoaded", () => {
             clearTimeout(debounce);
         }
         debounce = setTimeout(() => {
-            window.contents["ysheo@inswave.com"].push({textValue:el.value,timeStamp:timeUtil()});
+            let userKey = "ysheo@inswave.com";
+            valueChk(window.contents, userKey, el.value);
         }, 300);
     };
   
@@ -60,7 +67,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // 포커스 해제 시 이벤트 리스너 제거
     el.addEventListener("blur", () => {
         console.log("포커스 해제됨");
-        window.contents["ysheo@inswave.com"].push({textValue:el.value,timeStamp:timeUtil()});
+        let userKey = "ysheo@inswave.com";
+        valueChk(window.contents, userKey, el.value);
         el.removeEventListener("keydown", key);
     });
 
@@ -90,3 +98,22 @@ const timeUtil = () => {
 
     return returnDate;
 }
+
+/**
+ * 빈값이나 중복된 값이 있는지 체크후 값적재 로직입니다.
+ */
+const valueChk = (content, userKey, value) => {
+    console.log("content : ", content);
+    
+    // 빈값 return
+    if (value === '') return;
+    
+    const userContents = content[userKey] || [];
+    const isDuplicate = userContents.some(item => item.textValue === value);
+    
+    // 중복 return
+    if (isDuplicate) return;
+    
+    // 값 적재
+    window.contents[userKey].push({textValue:value,timeStamp:timeUtil()});
+};
