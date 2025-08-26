@@ -11,6 +11,7 @@ const timeOutRouter = require('./routes/timeout');
 const intervalRouter = require('./routes/interval');
 const promiseRouter = require('./routes/promise');
 const debounceRouter = require('./routes/debounce');
+const authRouter = require('./routes/auth');
 
 const app = express();
  
@@ -31,6 +32,7 @@ app.use('/timeout', timeOutRouter);
 app.use('/interval', intervalRouter);
 app.use('/promise', promiseRouter);
 app.use('/debounce', debounceRouter);
+app.use('/auth', authRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
