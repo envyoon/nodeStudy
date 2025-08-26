@@ -10,7 +10,9 @@
  * DOM객체. addEventListener(이벤트명, 실행할 함수명, 옵션) 
  */
 document.addEventListener("DOMContentLoaded", () => {
-    
+    //카카오 초기화
+    Kakao.init("74624c9eef1b4a521aa9a2f6c111d9a6");
+
     /**
      *  NOTE
      *  2025.08.09
@@ -116,4 +118,16 @@ const valueChk = (content, userKey, value) => {
     
     // 값 적재
     window.contents[userKey].push({textValue:value,timeStamp:timeUtil()});
+};
+
+/**
+ * 클라이언트 -> 카카오 인가 코드 요청입니다.
+ */
+const kakaoLogin = () => {
+    console.log("카카오 로그인 버튼 클릭 됨.");
+
+    const domain = 'http://localhost:3000/'
+    Kakao.Auth.authorize({
+        redirectUri: `${domain}/redirect`,
+    });
 };
