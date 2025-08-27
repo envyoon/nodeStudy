@@ -62,10 +62,17 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-// GET /debounce/me
+/**
+ * debounce 페이지 로드 시 로그인 세션 정보가 있는지 체크하는 로직입니다.
+ * 로그인 정보가 있다면 로그인한 정보를 return 해줍니다.
+ */
 router.get('/me', function (req, res) {
-  var user = req.session && req.session.kakao ? req.session.kakao.user : null;
+  const user = req.session && req.session.kakao ? req.session.kakao.user : null;
   if (!user) return res.status(204).send();
+
+    console.log("id : ",user.id)
+    console.log("email : ",user.kakao_account.email)
+    console.log("nickname : ",user.kakao_account.profile)
 
   res.json({
     id: user.id,
