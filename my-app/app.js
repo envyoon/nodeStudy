@@ -3,6 +3,8 @@ const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
+const session = require('express-session');
+require('dotenv').config();
 
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
@@ -23,6 +25,21 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.use(
+  session({
+    name: 'sid',
+    secret: process.env.SESSION_SECRET || 'change-this-secret',
+    resave: false,               
+    saveUninitialized: false,    
+    cookie: {
+      httpOnly: true,            
+      secure: false,             
+      sameSite: 'lax',           
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7일
+    },
+  })
+);
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);

@@ -1,3 +1,18 @@
+// ==== 설정 영역 ====
+const KAKAO_JS_KEY = '74624c9eef1b4a521aa9a2f6c111d9a6'; // ← 실제 Kakao JavaScript 키로 교체
+const DEFAULT_USER_KEY = 'Unknown';
+
+// 현재 로그인한 사용자 이메일(없으면 null)
+let currentUserEmail = null;
+
+// 현재 사용할 사용자 키(로그인 되어 있으면 이메일, 아니면 기본 키)
+const getActiveUserKey = () => currentUserEmail || DEFAULT_USER_KEY;
+
+// 해당 키의 배열이 없으면 생성
+const ensureUserKey = (content, userKey) => {
+  if (!content[userKey]) content[userKey] = [];
+};
+
 
 /**
  * 해당 부분은 화면을 가지고 왔을때 이벤트 리스너를 등록 해 주는 부분입니다.
@@ -10,8 +25,22 @@
  * DOM객체. addEventListener(이벤트명, 실행할 함수명, 옵션) 
  */
 document.addEventListener("DOMContentLoaded", () => {
-    //카카오 초기화
-    Kakao.init("74624c9eef1b4a521aa9a2f6c111d9a6");
+    // 카카오 초기화 (SDK가 로드되었는지 가드)
+    if (window.Kakao && !Kakao.isInitialized()) {
+      Kakao.init(KAKAO_JS_KEY);
+    }
+
+    // 세션에 로그인 유저가 있으면 이메일을 받아서 currentUserEmail에 저장
+    axios.get('/debounce/me')
+      .then((res) => {
+        if (res.status === 200 && res.data && res.data.email) {
+          currentUserEmail = res.data.email;
+          // console.log('[login] email =', currentUserEmail);
+        }
+      })
+      .catch(() => {
+        // 미로그인/에러 시 무시
+      });
 
     /**
      *  NOTE
@@ -41,9 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
      *      2. 다른 계정으로 로그인 했을 때 디바운싱을 할 때 다른 유저 정보를 넣어줘야함.
      *      3. 이때 그전에 있던 window.contents 정보는 그대로 있어야함.
      */
-    window.contents = {
-        "ysheo@inswave.com" : []
-    }
+    window.contents = {}
 
     const el = document.getElementById("tbx_test");
     
@@ -55,7 +82,8 @@ document.addEventListener("DOMContentLoaded", () => {
             clearTimeout(debounce);
         }
         debounce = setTimeout(() => {
-            let userKey = "ysheo@inswave.com";
+            const userKey = getActiveUserKey();     // ← 로그인 이메일 또는 기본 키
+            ensureUserKey(window.contents, userKey); // ← 배열 보장
             valueChk(window.contents, userKey, el.value);
         }, 300);
     };
@@ -69,7 +97,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // 포커스 해제 시 이벤트 리스너 제거
     el.addEventListener("blur", () => {
         console.log("포커스 해제됨");
-        let userKey = "ysheo@inswave.com";
+        const userKey = getActiveUserKey();        // ← 로그인 이메일 또는 기본 키
+        ensureUserKey(window.contents, userKey);   // ← 배열 보장
         valueChk(window.contents, userKey, el.value);
         el.removeEventListener("keydown", key);
     });
@@ -84,10 +113,10 @@ document.addEventListener("DOMContentLoaded", () => {
  * @returns {string} 현재 시간 문자열 (YYMMDDHHmmss)
  */
 const timeUtil = () => {
-    
-    const timestamp = new Date().getTime();
+    const timestamp = Date.now();
 
-    date = new Date(timestamp); 
+    // BUGFIX: 암묵적 전역 방지
+    const date = new Date(timestamp); 
 
     const year = date.getFullYear().toString().slice(-2);
     const month = ("0" + (date.getMonth() + 1)).slice(-2); 
@@ -97,7 +126,6 @@ const timeUtil = () => {
     const second = ("0" + date.getSeconds()).slice(-2); 
 
     const returnDate = `${year}${month}${day}${hour}${minute}${second}`;
-
     return returnDate;
 }
 
@@ -122,12 +150,24 @@ const valueChk = (content, userKey, value) => {
 
 /**
  * 클라이언트 -> 카카오 인가 코드 요청입니다.
+ * 클라이언트가 카카오에 인가 코드를 요청하면
+ * 다시 debounce url로 redirect를 진행합니다.
  */
 const kakaoLogin = () => {
-    console.log("카카오 로그인 버튼 클릭 됨.");
-
-    const domain = 'http://localhost:3000/'
+    const domain = window.location.origin; // 'http://localhost:3000'
+    if (!window.Kakao || !KAKAO_JS_KEY) {
+      alert('Kakao SDK 또는 JS 키가 설정되지 않았습니다.');
+      return;
+    }
+    if (!Kakao.isInitialized()) {
+      Kakao.init(KAKAO_JS_KEY);
+    }
     Kakao.Auth.authorize({
-        redirectUri: `${domain}/redirect`,
+        redirectUri: `${domain}/debounce`,
     });
 };
+
+// HTML의 onclick="kakaoLogin()"용 전역 노출(환경에 따라 생략 가능)
+if (typeof window !== 'undefined') {
+  window.kakaoLogin = kakaoLogin;
+}
