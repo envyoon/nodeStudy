@@ -1,16 +1,19 @@
 // ==== 설정 ====
-const KAKAO_JS_KEY = '74624c9eef1b4a521aa9a2f6c111d9a6'; // 실제 Kakao JS 키로 교체
-const DEFAULT_USER_KEY = 'Unknown';                        // 로그인 전 기본 키
-const STORAGE_KEY = 'contents:v1';                         // sessionStorage 키
+const KAKAO_JS_KEY = '74624c9eef1b4a521aa9a2f6c111d9a6';
+const DEFAULT_USER_KEY = 'Unknown';                     
+const STORAGE_KEY = 'contents:v1';                      
 const LAST_EMAIL_KEY = 'contents:lastEmail';
 
 // 현재 로그인한 사용자 이메일(없으면 null)
 let currentUserEmail = null;
 
-// 저장소 헬퍼
+/**
+ * 세션 스토리지에서 값을 가져옵니다. (자바로치면 getter?)
+ * @returns 
+ */
 const loadContentsFromStorage = () => {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY); // 오래 보관하려면 localStorage로 바꿔도 OK
+    const raw = sessionStorage.getItem(STORAGE_KEY); 
     return raw ? JSON.parse(raw) : null;
   } catch (e) {
     console.warn('Failed to parse contents from storage:', e);
@@ -18,6 +21,10 @@ const loadContentsFromStorage = () => {
   }
 };
 
+/**
+ * 세션 스토리지에 window.contents 값을 저장합니다(자바로치면 setter?)
+ * @param {*} contents 
+ */
 const saveContentsToStorage = (contents) => {
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(contents));
@@ -33,7 +40,6 @@ const getActiveUserKey = () => currentUserEmail || DEFAULT_USER_KEY;
 const ensureUserKey = (content, userKey) => {
   if (!content[userKey]) content[userKey] = [];
 };
-
 
 /**
  * 해당 부분은 화면을 가지고 왔을때 이벤트 리스너를 등록 해 주는 부분입니다.
@@ -57,35 +63,38 @@ document.addEventListener("DOMContentLoaded", () => {
     Kakao.init(KAKAO_JS_KEY);
   }
 
-  // 1) 저장소에서 복원 (없으면 기본 구조)
+  // Step 1) 저장소에서 값을 가져옵니다
   const restored = loadContentsFromStorage();
   window.contents = restored || { [DEFAULT_USER_KEY]: [] };
 
-  // 2) 현재 로그인 유저 조회
+  // Step 2) 현재 로그인 유저 조회
   axios.get('/debounce/me')
   .then((res) => {
     if (res.status === 200 && res.data && res.data.email) {
       currentUserEmail = res.data.email;
 
-      // 직전에 썼던 이메일
+      /**
+       * 세션 스토리지에서 마지막 이메일을 가지고 옵니다.
+       * 만약 세션 스토리지에 이메일이 없으면 로그인한 유저 정보로 window.content 정보를 만들어 놓습니다.
+       */
       const lastEmail = sessionStorage.getItem(LAST_EMAIL_KEY);
 
       if (lastEmail && lastEmail !== currentUserEmail) {
-        // 계정이 바뀐 경우에만 빈값
         window.contents[currentUserEmail] = [];
-      } else {
-        // 같은 계정이면 유지(없으면 만들기)
+      } 
+      else {
         if (!window.contents[currentUserEmail]) {
           window.contents[currentUserEmail] = [];
         }
       }
 
+      // 세션스토리지에 마지막 로그인된 이메일을 저장합니다.
       sessionStorage.setItem(LAST_EMAIL_KEY, currentUserEmail);
       saveContentsToStorage(window.contents);
     }
   })
   .catch(() => {
-    // 미로그인/에러 → Unknown 유지
+    
   });
 
   const el = document.getElementById("tbx_test");
@@ -98,22 +107,20 @@ document.addEventListener("DOMContentLoaded", () => {
       clearTimeout(debounce);
     }
     debounce = setTimeout(() => {
-      const userKey = getActiveUserKey();      // 로그인 이메일 또는 Unknown
-      ensureUserKey(window.contents, userKey); // 배열 보장
+      const userKey = getActiveUserKey();      
+      ensureUserKey(window.contents, userKey); 
       valueChk(window.contents, userKey, el.value);
-      saveContentsToStorage(window.contents);  // 저장소 동기화
+      saveContentsToStorage(window.contents);  
     }, 300);
   };
 
   // 포커스 시 이벤트 리스너 등록
   el.addEventListener("focus", () => {
-    // console.log("포커스 됨");
     el.addEventListener("keydown", key);
   });
 
   // 포커스 해제 시 이벤트 리스너 제거
   el.addEventListener("blur", () => {
-    // console.log("포커스 해제됨");
     const userKey = getActiveUserKey();
     ensureUserKey(window.contents, userKey);
     valueChk(window.contents, userKey, el.value);
@@ -121,7 +128,6 @@ document.addEventListener("DOMContentLoaded", () => {
     el.removeEventListener("keydown", key);
   });
 });
-
 
 /**
  * 현재 시간을 문자열 형식으로 반환합니다.
@@ -167,31 +173,42 @@ const valueChk = (content, userKey, value) => {
  * 다시 debounce url로 redirect를 진행합니다.
  */
 const kakaoLogin = () => {
-  const domain = window.location.origin; // http://localhost:3000
+  //http://localhost:3000
+  const domain = window.location.origin;
   if (!window.Kakao || !KAKAO_JS_KEY) {
     alert('Kakao SDK 또는 JS 키가 설정되지 않았습니다.');
     return;
   }
+
+  // 카카오 init이 안되었으면 init처리 해줍니다.
   if (!Kakao.isInitialized()) Kakao.init(KAKAO_JS_KEY);
 
+  // 카카오 인가토큰을 받는 과정입니다. (prompt : login 은 매번 강제로그인임.)
   Kakao.Auth.authorize({
     redirectUri: `${domain}/debounce`,
     prompt: 'login',
   });
 };
 
-/** 로그아웃 */
+/** 
+ * 로그아웃 로직입니다.
+ * */
 const kakaoLogout = async () => {
   try {
     await axios.post('/debounce/logout');
     if (window.Kakao && Kakao.Auth && Kakao.Auth.getAccessToken()) {
-      try { Kakao.Auth.logout(() => {}); } catch (_) {}
+      try { 
+        Kakao.Auth.logout(() => {}); 
+      } catch (e) {
+        console.log(e);
+      }
     }
-    sessionStorage.removeItem(LAST_EMAIL_KEY);
 
+    //세션 스토리지에서 마지막 로그인 메일을 제거후 전역메일도 null처리합니다.
+    sessionStorage.removeItem(LAST_EMAIL_KEY);
     currentUserEmail = null;
-    if (!window.contents) window.contents = {};
-    if (!window.contents['Unknown']) window.contents['Unknown'] = [];
+
+    // 페이지를 재 호출합니다.
     window.location.href = '/debounce';
   } catch (e) {
     console.error('[logout] failed:', e);
@@ -199,6 +216,9 @@ const kakaoLogout = async () => {
   }
 };
 
+/**
+ * 세션스토리지에 있는 정보를 모두 없에주는 지원 함수입니다.
+ */
 const clearSessionStorageAll = () => {
   try {
     sessionStorage.clear();

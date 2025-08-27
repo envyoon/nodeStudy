@@ -23,6 +23,7 @@ router.get('/', async (req, res, next) => {
       return res.render('debounce');
     }
 
+    // 인가 토큰으로 인증을 하는 과정입니다.
     const tokenRes = await axios.post('https://kauth.kakao.com/oauth/token', 
       new URLSearchParams({
         grant_type: 'authorization_code',
@@ -36,15 +37,14 @@ router.get('/', async (req, res, next) => {
     );
     
     const { access_token, refresh_token, token_type, expires_in, scope } = tokenRes.data;
-    console.log('[Kakao] token issued:', { token_type, expires_in, scope} );
 
     const meRes = await axios.get('https://kapi.kakao.com/v2/user/me', {
       headers: { Authorization: `Bearer ${access_token}` },
     });
 
     const user = meRes.data;
-    console.log('[Kakao] user:', user?.id, user?.kakao_account?.email);
 
+    // 세션에 저장합니다.
     if (req.session) {
       req.session.kakao = {
         access_token,
