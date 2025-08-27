@@ -2,6 +2,7 @@
 const KAKAO_JS_KEY = '74624c9eef1b4a521aa9a2f6c111d9a6'; // 실제 Kakao JS 키로 교체
 const DEFAULT_USER_KEY = 'Unknown';                        // 로그인 전 기본 키
 const STORAGE_KEY = 'contents:v1';                         // sessionStorage 키
+const LAST_EMAIL_KEY = 'contents:lastEmail';
 
 // 현재 로그인한 사용자 이메일(없으면 null)
 let currentUserEmail = null;
@@ -45,6 +46,12 @@ const ensureUserKey = (content, userKey) => {
  * DOM객체. addEventListener(이벤트명, 실행할 함수명, 옵션) 
  */
 document.addEventListener("DOMContentLoaded", () => {
+
+  // 리스너 등록
+  document.getElementById('kakaoLogin')?.addEventListener('click', kakaoLogin);
+  document.getElementById('kakaoLogout')?.addEventListener('click', kakaoLogout);
+  document.getElementById('clearStorage')?.addEventListener('click', clearSessionStorageAll);
+
   // Kakao 초기화 (SDK 가드)
   if (window.Kakao && !Kakao.isInitialized()) {
     Kakao.init(KAKAO_JS_KEY);
@@ -56,24 +63,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 2) 현재 로그인 유저 조회
   axios.get('/debounce/me')
-    .then((res) => {
-      if (res.status === 200 && res.data && res.data.email) {
-        currentUserEmail = res.data.email;
+  .then((res) => {
+    if (res.status === 200 && res.data && res.data.email) {
+      currentUserEmail = res.data.email;
 
-        // === 포인트 ===
-        // 새 로그인은 "빈값부터" 시작하길 원하므로:
-        window.contents[currentUserEmail] = [];   // 이전 데이터/Unknown 데이터와 merge하지 않음
-        saveContentsToStorage(window.contents);
+      // 직전에 썼던 이메일
+      const lastEmail = sessionStorage.getItem(LAST_EMAIL_KEY);
+
+      if (lastEmail && lastEmail !== currentUserEmail) {
+        // 계정이 바뀐 경우에만 빈값
+        window.contents[currentUserEmail] = [];
+      } else {
+        // 같은 계정이면 유지(없으면 만들기)
+        if (!window.contents[currentUserEmail]) {
+          window.contents[currentUserEmail] = [];
+        }
       }
-    })
-    .catch(() => {
-      // 미로그인/에러 → Unknown 으로 계속 사용
-    });
 
-  /**
-   *  NOTE
-   *  (기존 주석 유지)
-   */
+      sessionStorage.setItem(LAST_EMAIL_KEY, currentUserEmail);
+      saveContentsToStorage(window.contents);
+    }
+  })
+  .catch(() => {
+    // 미로그인/에러 → Unknown 유지
+  });
+
   const el = document.getElementById("tbx_test");
 
   let debounce = 0;
@@ -153,20 +167,46 @@ const valueChk = (content, userKey, value) => {
  * 다시 debounce url로 redirect를 진행합니다.
  */
 const kakaoLogin = () => {
-  const domain = window.location.origin; // 'http://localhost:3000'
+  const domain = window.location.origin; // http://localhost:3000
   if (!window.Kakao || !KAKAO_JS_KEY) {
     alert('Kakao SDK 또는 JS 키가 설정되지 않았습니다.');
     return;
   }
-  if (!Kakao.isInitialized()) {
-    Kakao.init(KAKAO_JS_KEY);
-  }
+  if (!Kakao.isInitialized()) Kakao.init(KAKAO_JS_KEY);
+
   Kakao.Auth.authorize({
     redirectUri: `${domain}/debounce`,
+    prompt: 'login',
   });
 };
 
-// HTML의 onclick="kakaoLogin()"용 전역 노출
-if (typeof window !== 'undefined') {
-  window.kakaoLogin = kakaoLogin;
-}
+/** 로그아웃 */
+const kakaoLogout = async () => {
+  try {
+    await axios.post('/debounce/logout');
+    if (window.Kakao && Kakao.Auth && Kakao.Auth.getAccessToken()) {
+      try { Kakao.Auth.logout(() => {}); } catch (_) {}
+    }
+    sessionStorage.removeItem(LAST_EMAIL_KEY);
+
+    currentUserEmail = null;
+    if (!window.contents) window.contents = {};
+    if (!window.contents['Unknown']) window.contents['Unknown'] = [];
+    window.location.href = '/debounce';
+  } catch (e) {
+    console.error('[logout] failed:', e);
+    window.location.href = '/debounce';
+  }
+};
+
+const clearSessionStorageAll = () => {
+  try {
+    sessionStorage.clear();
+    window.contents = { [DEFAULT_USER_KEY]: [] };
+    currentUserEmail = null;
+    alert('세션 스토리지 전체 삭제 완료');
+    location.reload();
+  } catch (e) {
+    console.warn(e);
+  }
+};

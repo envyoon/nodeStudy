@@ -53,9 +53,7 @@ router.get('/', async (req, res, next) => {
       };
     }
 
-    // return res.render('profile', { user });
-    console.log("user : ",user);
-    return res.render('debounce',{user});
+    return res.redirect(303, '/debounce');
   } catch (err) {
     console.error('[Kakao] error:', err?.response?.data || err);
     return next(err);
@@ -70,14 +68,25 @@ router.get('/me', function (req, res) {
   const user = req.session && req.session.kakao ? req.session.kakao.user : null;
   if (!user) return res.status(204).send();
 
-    console.log("id : ",user.id)
-    console.log("email : ",user.kakao_account.email)
-    console.log("nickname : ",user.kakao_account.profile)
-
   res.json({
     id: user.id,
     email: user.kakao_account && user.kakao_account.email ? user.kakao_account.email : null,
     nickname: user.kakao_account && user.kakao_account.profile ? user.kakao_account.profile.nickname : null,
+  });
+});
+
+/**
+ * 로그웃 버튼 클릭시 호출되는 부분입니다.
+ */
+router.post('/logout', (req, res) => {
+  if (!req.session) return res.status(204).send(); // 이미 없는 경우
+  req.session.destroy(err => {
+    if (err) {
+      console.error('[logout] session destroy error:', err);
+      return res.status(500).json({ ok: false, message: '세션 삭제 실패' });
+    }
+    res.clearCookie('sid'); 
+    return res.status(204).send(); // No Content
   });
 });
 

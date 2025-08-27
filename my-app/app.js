@@ -29,7 +29,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(
   session({
     name: 'sid',
-    secret: process.env.SESSION_SECRET || 'change-this-secret',
+    secret: process.env.SESSION_SECRET,
     resave: false,               
     saveUninitialized: false,    
     cookie: {
