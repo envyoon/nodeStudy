@@ -1,68 +1,68 @@
-const createError = require('http-errors');
-const express = require('express');
-const path = require('path');
-const cookieParser = require('cookie-parser');
-const logger = require('morgan');
-const session = require('express-session');
-require('dotenv').config();
+const createError = require("http-errors");
+const express = require("express");
+const path = require("path");
+const cookieParser = require("cookie-parser");
+const logger = require("morgan");
+const session = require("express-session");
+require("dotenv").config();
 
-const indexRouter = require('./routes/index');
-const usersRouter = require('./routes/users');
-const getTestRouter = require('./routes/getTest');
-const timeOutRouter = require('./routes/timeout');
-const intervalRouter = require('./routes/interval');
-const promiseRouter = require('./routes/promise');
-const debounceRouter = require('./routes/debounce');
+const indexRouter = require("./routes/index");
+const usersRouter = require("./routes/users");
+const getTestRouter = require("./routes/getTest");
+const timeOutRouter = require("./routes/timeout");
+const intervalRouter = require("./routes/interval");
+const promiseRouter = require("./routes/promise");
+const debounceRouter = require("./routes/debounce");
 
 const app = express();
- 
-// view engine setup
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'ejs');
 
-app.use(logger('dev'));
+// view engine setup
+app.set("views", path.join(__dirname, "views"));
+app.set("view engine", "ejs");
+
+app.use(logger("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, "public")));
 
+// 세션관리를 위해 사용합니다.
 app.use(
   session({
-    name: 'sid',
+    name: "sid",
     secret: process.env.SESSION_SECRET,
-    resave: false,               
-    saveUninitialized: false,    
+    resave: false,
+    saveUninitialized: false,
     cookie: {
-      httpOnly: true,            
-      secure: false,             
-      sameSite: 'lax',           
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7일
     },
   })
 );
 
-app.use('/', indexRouter);
-app.use('/users', usersRouter);
-app.use('/test', getTestRouter);
-app.use('/timeout', timeOutRouter);
-app.use('/interval', intervalRouter);
-app.use('/promise', promiseRouter);
-app.use('/debounce', debounceRouter);
+app.use("/", indexRouter);
+app.use("/users", usersRouter);
+app.use("/test", getTestRouter);
+app.use("/timeout", timeOutRouter);
+app.use("/interval", intervalRouter);
+app.use("/promise", promiseRouter);
+app.use("/debounce", debounceRouter);
 
 // catch 404 and forward to error handler
-app.use(function(req, res, next) {
+app.use(function (req, res, next) {
   next(createError(404));
 });
 
 // error handler
-app.use(function(err, req, res, next) {
-  // set locals, only providing error in development
+app.use(function (err, req, res, next) {
   res.locals.message = err.message;
-  res.locals.error = req.app.get('env') === 'development' ? err : {};
+  res.locals.error = req.app.get("env") === "development" ? err : {};
 
   // render the error page
   res.status(err.status || 500);
-  res.render('error');
+  res.render("error");
 });
 
 module.exports = app;
