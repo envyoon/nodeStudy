@@ -37,7 +37,7 @@ router.get("/", async (req, res, next) => {
       }
     );
 
-    const { access_token, refresh_token, token_type, expires_in, scope } = tokenRes.data;
+    const { access_token, refresh_token } = tokenRes.data;
 
     const meRes = await axios.get("https://kapi.kakao.com/v2/user/me", {
       headers: { Authorization: `Bearer ${access_token}` },
