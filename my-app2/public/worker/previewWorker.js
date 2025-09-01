@@ -24,8 +24,7 @@ parentPort.on('message', (value) => {
 });
 
 /**
- * 해당 부분은 AI 가 해줌.. 내 머리로는 파싱로직을 시간내에 해낼 수 없다고 생각했음 ;
- * 요은누나 대단해..
+ * 문자를 파싱해 주는 부분입니다.
  * @param {*} apiJson 
  * @param {*} inputText 
  * @returns 
