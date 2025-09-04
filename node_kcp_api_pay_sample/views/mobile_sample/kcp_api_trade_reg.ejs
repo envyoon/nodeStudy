@@ -1,0 +1,56 @@
+﻿<!DOCTYPE>
+<html>
+<head>
+    <title>*** NHN KCP API SAMPLE ***</title>
+    <meta charset="UTF-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=yes, target-densitydpi=medium-dpi">  
+    <script type="text/javascript">
+
+        function goReq()
+        {
+            // 거래등록 처리 정상
+            if ( '<%=res_data.Code%>' == "0000" ) 
+            {
+            
+                alert("거래등록 성공");
+                document.form_trade_reg.action = "/mobile_sample/order_mobile";
+                document.form_trade_reg.submit();
+           
+            }
+        
+            // 거래등록 처리 실패, 여기(샘플)에서는 trade_reg page로 리턴 합니다.
+            else
+            {
+                alert("에러 코드 : <%=res_data.Code%>, 에러 메세지 : <%=res_data.Message%>");
+                location.href = "/mobile_sample/trade_reg";
+            }
+                    
+        }
+    </script>
+</head>
+<body onload="goReq();">
+    <!--  거래등록 form : form_trade_reg -->
+    <form name="form_trade_reg" method="post">
+        <!--//footer-->
+        <input type="hidden" name="site_cd"         value="<%=req_data.site_cd %>" />  <!-- 사이트 코드 -->
+        <input type="hidden" name="ordr_idxx"       value="<%=req_data.ordr_idxx %>" /><!-- 주문번호     -->
+        <input type="hidden" name="good_mny"        value="<%=req_data.good_mny %>" /> <!-- 결제금액     -->
+        <input type="hidden" name="good_name"       value="<%=req_data.good_name %>" /><!-- 상품명       -->
+        <!-- 리턴 URL (kcp와 통신후 결제를 요청할 수 있는 암호화 데이터를 전송 받을 가맹점의 주문페이지 URL) -->
+        <input type="hidden" name="Ret_URL"         value="<%=req_data.Ret_URL %>" />
+        <!-- 인증시 필요한 파라미터(변경불가)-->
+        <input type="hidden" name="pay_method"      value="<%=req_data.pay_method %>" />
+        <input type="hidden" name="ActionResult"    value="<%=post_data.actionResult %>" />
+        <input type="hidden" name="van_code"        value="<%=post_data.van_code %>" />
+        <!-- 거래등록 응답 값 -->
+        <input type="hidden" name="approvalKey"     value="<%=res_data.approvalKey %>" />
+        <input type="hidden" name="traceNo"         value="<%=res_data.traceNo %>" />
+        <input type="hidden" name="PayUrl"          value="<%=res_data.PayUrl %>" />
+        <!-- order_mobile 분기 처리를 위한 구분 값  -->
+        <input type="hidden" name="enc_info"        value="" />
+        <input type="hidden" name="res_cd"          value="<%=res_data.Code%>" />
+        <input type="hidden" name="res_msg"         value="<%=res_data.Message%>" />
+    </form>
+</body>
+</html>
