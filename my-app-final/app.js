@@ -1,13 +1,18 @@
-var createError = require('http-errors');
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
+const createError = require('http-errors');
+const express = require('express');
+const path = require('path');
+const cookieParser = require('cookie-parser');
+const logger = require('morgan');
+const session = require("express-session");
+require("dotenv").config();
 
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
+const indexRouter = require('./routes/index');
+const usersRouter = require('./routes/users');
+const mainRouter = require("./routes/mainRouter");
+const authRouter = require("./routes/authRouter");
+const talkRouter = require("./routes/talkRouter");
 
-var app = express();
+const app = express();
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -19,8 +24,27 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// 세션관리를 위해 사용합니다.
+app.use(
+  session({
+    name: "sid",
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7일
+    },
+  })
+);
+
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
+app.use("/main", mainRouter);
+app.use("/auth", authRouter);
+app.use("/talk", talkRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
