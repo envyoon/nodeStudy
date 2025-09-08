@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon app.js --watch routes --watch views --watch public --ext js,json,ejs"
   },
   "author": "",
   "license": "ISC",
@@ -14,6 +15,7 @@
     "node-fetch": "^2.6.6"
   },
   "devDependencies": {
-    "@types/node-fetch": "^3.0.3"
+    "@types/node-fetch": "^3.0.3",
+    "nodemon": "^3.1.10"
   }
 }
