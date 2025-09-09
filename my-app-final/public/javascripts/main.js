@@ -1,6 +1,6 @@
 // ── 설정
 const KAKAO_JS_KEY = "74624c9eef1b4a521aa9a2f6c111d9a6";
-const TALK_URL     = "/talk";   
+const TALK_URL = "/talk";
 const STORAGE_USERS = "users:v1";
 const LAST_EMAIL_KEY = "contents:lastEmail";
 
@@ -21,9 +21,15 @@ const loadUsers = () => {
   try {
     const raw = sessionStorage.getItem(STORAGE_USERS);
     return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 };
-const findUser = (id, pw) => (loadUsers().find(u => u.id === id && u.pw === pw) || null);
+const normalize = (s) => (s || "").trim().toLowerCase();
+const findUser = (idOrEmail, pw) => {
+  const needle = normalize(idOrEmail);
+  return loadUsers().find((u) => (normalize(u.id) === needle || normalize(u.email) === needle) && u.pw === pw) || null;
+};
 
 // ── 일반 로그인(세션스토리지 검증 + 서버세션 세팅)
 const handleLocalLogin = async () => {
@@ -70,14 +76,20 @@ const handleKakaoLogin = () => {
 
 // ── 엔터 제출
 const handleEnterKey = (e) => {
-  if (e.key === "Enter") { e.preventDefault(); handleLocalLogin(); }
+  if (e.key === "Enter") {
+    e.preventDefault();
+    handleLocalLogin();
+  }
 };
 
 // ── 바인딩
 document.addEventListener("DOMContentLoaded", () => {
   // 마지막 로그인 자동 채움
   const last = sessionStorage.getItem(LAST_EMAIL_KEY);
-  if (last) { const el = document.getElementById("login-id"); if (el && !el.value) el.value = last; }
+  if (last) {
+    const el = document.getElementById("login-id");
+    if (el && !el.value) el.value = last;
+  }
 
   document.getElementById("login-id")?.addEventListener("keydown", handleEnterKey);
   document.getElementById("login-pw")?.addEventListener("keydown", handleEnterKey);

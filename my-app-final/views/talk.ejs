@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>Talk</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/stylesheets/style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <!-- provider/meName을 data-*로 전달 -->
+      <div class="card chat" id="chat-app" data-provider="<%- provider %>" data-me="<%- meName %>" role="application" aria-label="채팅방">
+        <header class="chat-header">
+          <div class="left">
+            <h1 class="room-title">Talk</h1>
+            <span id="online-count" class="badge" aria-live="polite">온라인 1</span>
+            <span id="conn-status" class="badge badge--warn" aria-live="polite">연결 중…</span>
+          </div>
+          <div class="right">
+            <button id="btn-pay" class="btn btn-primary" type="button">결제하기</button>
+            <span class="me" id="me-name" title="내 계정"></span>
+            <button id="btn-logout" class="btn btn-ghost" type="button">로그아웃</button>
+          </div>
+        </header>
+
+        <main class="chat-body">
+          <ul id="messages" class="chat-messages" aria-live="polite" aria-relevant="additions"></ul>
+          <div id="typing-indicator" class="typing" style="display: none">상대가 입력 중…</div>
+        </main>
+
+        <footer class="input-bar">
+          <button id="btn-attach" class="icon-btn" type="button" title="파일 첨부">📎</button>
+          <textarea id="message-input" rows="1" placeholder="메시지를 입력하세요 (Enter: 전송, Shift+Enter: 줄바꿈)" aria-label="메시지 입력"></textarea>
+          <button id="btn-send" class="btn btn-primary" type="button">전송</button>
+        </footer>
+      </div>
+    </div>
+
+    <script src="/lib/axios.min.js"></script>
+    <script src="/lib/kakao.min.js" crossorigin="anonymous"></script>
+    <script src="/javascripts/talk.js"></script>
+  </body>
+</html>
