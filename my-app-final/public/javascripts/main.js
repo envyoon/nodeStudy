@@ -45,7 +45,7 @@ const handleLocalLogin = async () => {
 
   setLoading(true);
   try {
-    // 서버 세션에 로그인 상태만 기록 (DB 없음)
+    // 서버 세션에 로그인 상태만 기록 
     if (!window.axios) throw new Error("axios not loaded");
     await window.axios.post("/auth/local-login", { id, email: user.email || id });
 
@@ -85,11 +85,11 @@ const handleEnterKey = (e) => {
 // ── 바인딩
 document.addEventListener("DOMContentLoaded", () => {
   // 마지막 로그인 자동 채움
-  const last = sessionStorage.getItem(LAST_EMAIL_KEY);
-  if (last) {
-    const el = document.getElementById("login-id");
-    if (el && !el.value) el.value = last;
-  }
+  // const last = sessionStorage.getItem(LAST_EMAIL_KEY);
+  // if (last) {
+  //   const el = document.getElementById("login-id");
+  //   if (el && !el.value) el.value = last;
+  // }
 
   document.getElementById("login-id")?.addEventListener("keydown", handleEnterKey);
   document.getElementById("login-pw")?.addEventListener("keydown", handleEnterKey);
