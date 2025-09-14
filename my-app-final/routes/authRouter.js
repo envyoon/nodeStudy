@@ -2,46 +2,46 @@
 const express = require("express");
 const router = express.Router();
 
-router.get("/signup", (req, res) => {
-  res.render("signup"); // views/signup.ejs
-});
-
-// DB 없이: 클라이언트에서 이미 검증됨. 서버는 세션만 세팅.
+/**
+ * [POST] /auth/local-login
+ * - 일반 로컬 로그인: 클라에서 전달한 id/email/paid 를 세션에 심고 결제여부(req.session.paid)에 따라 /pay 또는 /talk 리다이렉트 정보 반환
+ * - 관리자 바이패스: id==="admin" && pw==="admin" 이면 req.session.paid = true 로 만들고 바로 /talk
+ */
 router.post("/local-login", (req, res) => {
-  const { id, email, paid } = req.body || {};
+  try {
+    const { id, email, paid, pw } = req.body || {};
 
-  // 세션에 로그인 사용자 기록
-  req.session.user = { id, email: email || id, provider: "local" };
-  req.session.paid = !!paid;
+    // ── 1) 관리자 바이패스 ──────────────────────────────────────────────
+    if (id === "admin" && pw === "admin") {
+      req.session.user = { id: "admin", email: "admin", isAdmin: true };
+      req.session.paid = true; // 결제 가드 우회
+      return res.json({
+        ok: true,
+        requiresPayment: false,
+        redirect: "/talk",
+      });
+    }
 
-  // 미결제면 결제 플로우로 유도
-  if (!req.session.paid) {
-    req.session.payMeta = {
-      from: "login",
-      reason: "need_payment",
-      next: "/talk",
-      amount: 990, // 기본 금액
-      goodName: "채팅 이용권",
-      ts: Date.now(),
-    };
+    // ── 2) 일반 로컬 로그인 (기존 플로우 그대로) ────────────────────────
+    // 클라(메인화면)에서 sessionStorage 유저검증을 이미 마친 상태라고 가정.
+    // 이 서버 라우트는 세션만 세팅하고 어디로 갈지 알려준다.
+    const userId = id || email || "user";
+    const userEmail = email || null;
+
+    req.session.user = { id: userId, email: userEmail || undefined, isAdmin: false };
+    req.session.paid = !!paid; // 결제 여부는 클라 보관값을 그대로 반영 (정책에 따라 서버검증으로 바꿔도 됨)
+
+    // 결제 필요 여부 판단
+    const needPay = !req.session.paid;
     return res.json({
       ok: true,
-      requiresPayment: true,
-      redirect: "/pay",
+      requiresPayment: needPay,
+      redirect: needPay ? "/pay" : "/talk",
     });
+  } catch (e) {
+    console.error("[/auth/local-login] error:", e);
+    return res.status(500).json({ ok: false, message: "로그인 처리 중 오류" });
   }
-
-  // 결제자면 바로 토크 페이지로
-  return res.json({ ok: true, redirect: "/talk" });
-});
-
-router.post("/logout", (req, res) => {
-  if (!req.session) return res.status(204).send();
-  req.session.destroy((err) => {
-    if (err) return res.status(500).json({ ok: false });
-    res.clearCookie("sid");
-    return res.status(204).send();
-  });
 });
 
 module.exports = router;

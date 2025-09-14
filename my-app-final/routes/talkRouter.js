@@ -3,11 +3,16 @@ const express = require("express");
 const axios = require("axios");
 const router = express.Router();
 
-const { KAKAO_REST_API_KEY, KAKAO_REDIRECT_URI = "http://localhost:3000/talk", KAKAO_CLIENT_SECRET } = process.env;
+const {
+  KAKAO_REST_API_KEY,
+  KAKAO_REDIRECT_URI = "http://localhost:3000/talk",
+  KAKAO_CLIENT_SECRET,
+  SOCKET_URL, // ★ 추가: 클라에 내려줄 소켓 서버 URL
+} = process.env;
 
 /** 공통: 세션에서 표시용 meName/provider 뽑기 */
 function pickMe(req) {
-  // 일반 로그인 (req.session.user 는 /auth/local-login에서 세팅한다고 가정)
+  // 일반 로그인
   if (req.session?.user) {
     const { email, id } = req.session.user;
     return { provider: "local", meName: email || id || "User" };
@@ -42,12 +47,16 @@ router.get("/", async (req, res, next) => {
         const params = new URLSearchParams({
           grant_type: "authorization_code",
           client_id: KAKAO_REST_API_KEY,
-          redirect_uri: KAKAO_REDIRECT_URI, // 프런트와 콘솔/ENV 모두 동일해야 함
+          redirect_uri: KAKAO_REDIRECT_URI,
           code,
         });
         if (KAKAO_CLIENT_SECRET) params.append("client_secret", KAKAO_CLIENT_SECRET);
 
-        const tokenRes = await axios.post("https://kauth.kakao.com/oauth/token", params.toString(), { headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+        const tokenRes = await axios.post(
+          "https://kauth.kakao.com/oauth/token",
+          params.toString(),
+          { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+        );
 
         const { access_token, refresh_token } = tokenRes.data;
 
@@ -70,36 +79,37 @@ router.get("/", async (req, res, next) => {
             }
           }
         } catch (_) {
-          // state 파싱 실패는 무시(미설정/타 브라우저 등)
+          // state 파싱 실패는 무시
         }
 
-        // 쿼리 정리(코드 제거) 위해 자가 리다이렉트
+        // 쿼리 정리 위해 자가 리다이렉트
         return res.redirect(303, "/talk");
       } catch (err) {
         const status = err.response?.status;
         const data = err.response?.data;
-        console.error("[kakao token error]", status, data, {
-          used_redirect_uri: KAKAO_REDIRECT_URI,
-        });
-        // 흔한 원인: redirect_uri 불일치, client_secret 누락, code 재사용/만료
+        console.error("[kakao token error]", status, data, { used_redirect_uri: KAKAO_REDIRECT_URI });
         return res.status(400).send("Kakao token exchange failed.");
       }
     }
 
-    // 2) 보호 라우팅: 일반/카카오 세션 모두 없으면 /main 으로
+    // 2) 보호 라우팅: 로그인 없으면 /main
     const hasLocal = !!req.session?.user;
     const hasKakao = !!req.session?.kakao;
     if (!hasLocal && !hasKakao) return res.redirect("/main");
 
-    // 2.5) 결제 가드: 미결제면 /pay로
+    // 2.5) 결제 가드: 미결제면 /pay
     if (!req.session.paid) {
       req.session.payMeta = { from: "talk", reason: "need_payment", next: "/talk" };
       return res.redirect("/pay");
     }
 
-    // 3) 뷰 렌더
+    // 3) 뷰 렌더 + ★ 소켓 URL 주입
     const { provider, meName } = pickMe(req);
-    return res.render("talk", { provider, meName });
+    return res.render("talk", {
+      provider,
+      meName,
+      socketUrl: SOCKET_URL || "", // 없으면 같은 오리진으로 붙음
+    });
   } catch (err) {
     console.error("[talk error]", err?.response?.data || err);
     return next(err);
@@ -131,31 +141,29 @@ router.get("/me", (req, res) => {
 /** POST /talk/logout : 서버 세션 파괴 */
 router.post("/logout", async (req, res) => {
   try {
-    // 1) 카카오 세션이 있으면 카카오 로그아웃 REST 호출(토큰 무효화)
     const kakaoAccess = req.session?.kakao?.access_token;
     if (kakaoAccess) {
       try {
-        await axios.post("https://kapi.kakao.com/v1/user/logout", null, { headers: { Authorization: `Bearer ${kakaoAccess}` } });
+        await axios.post("https://kapi.kakao.com/v1/user/logout", null, {
+          headers: { Authorization: `Bearer ${kakaoAccess}` },
+        });
       } catch (e) {
-        // 실패해도 서버 세션은 지워야 하므로 로깅만
         console.warn("[kakao logout] failed:", e?.response?.data || e);
       }
     }
 
-    // 2) 서버 세션 파괴 + 쿠키 삭제
     if (!req.session) {
-      res.clearCookie("sid"); // 쿠키명 커스텀이면 맞춰서 수정
+      res.clearCookie("sid");
       return res.status(204).send();
     }
 
     req.session.destroy((err) => {
       if (err) {
         console.error("[logout] session destroy error:", err);
-        // 세션 파괴 실패시에도 쿠키는 지워 시도
         res.clearCookie("sid");
         return res.status(500).json({ ok: false, message: "세션 삭제 실패" });
       }
-      res.clearCookie("sid"); // 세션 쿠키명과 옵션을 설정과 일치시킬 것
+      res.clearCookie("sid");
       return res.status(204).send();
     });
   } catch (e) {

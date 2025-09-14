@@ -58,21 +58,34 @@ const handleLocalLogin = async () => {
   if (!id) return showError("아이디를 입력하세요.");
   if (!pw) return showError("비밀번호를 입력하세요.");
 
-  const user = findUser(id, pw);
-  if (!user) return showError("아이디 또는 비밀번호가 올바르지 않습니다.");
+  // ★ 관리자 바이패스 허용
+  const isAdminBypass = id === "admin" && pw === "admin";
+
+  // 일반 유저 검증 (sessionStorage 기반) — 관리자면 건너뜀
+  let user = null;
+  if (!isAdminBypass) {
+    user = findUser(id, pw);
+    if (!user) return showError("아이디 또는 비밀번호가 올바르지 않습니다.");
+  }
 
   setLoading(true);
   try {
-    const res = await window.axios.post("/auth/local-login", {
-      id,
-      email: user.email || id,
-      paid: !!user.paid,
-    });
+    // 서버로 로그인 요청
+    // - 관리자: pw도 함께 보냄 → 서버가 admin/admin 확인
+    // - 일반: 기존과 동일
+    const res = await window.axios.post(
+      "/auth/local-login",
+      isAdminBypass
+        ? { id, email: "admin", paid: true, pw } // 관리자 바이패스: paid=true로 바로 /talk
+        : { id, email: user.email || id, paid: !!user.paid, pw: "" } // pw는 사용 안하지만 필드 통일
+    );
+
     const data = res.data || {};
 
-    sessionStorage.setItem(LAST_EMAIL_KEY, user.email || id);
+    // 최근 로그인 이메일 저장(관리자도 형태 맞춰 저장)
+    sessionStorage.setItem(LAST_EMAIL_KEY, isAdminBypass ? "admin" : user.email || id);
 
-    // 서버가 내려준 redirect 우선
+    // 서버가 내려준 redirect 로 이동(알림창 없음)
     window.location.href = data.redirect || (data.requiresPayment ? "/pay" : "/talk");
   } catch (e) {
     console.error("[local login]", e);

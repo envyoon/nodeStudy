@@ -1,36 +1,29 @@
 /* ==============================
- * 공통 상수/유틸
+ * talk.js — socket + $p. 자동완성(클래식)
  * ============================== */
 const AUTH_USER_KEY = "auth:user:v1";
 const LAST_EMAIL_KEY = "contents:lastEmail";
 
+/* ------------ 공용 유틸 ------------ */
 const nowHHMM = () => {
   const d = new Date();
   const p = (n) => String(n).padStart(2, "0");
   return `${p(d.getHours())}:${p(d.getMinutes())}`;
 };
-
-// axios 전역 설정 (동일 출처 쿠키 자동 포함)
 if (!window.axios) throw new Error("axios not loaded");
 window.axios.defaults.withCredentials = true;
-
-const httpPost = async (url, bodyJSON) => window.axios.post(url, bodyJSON);
+const httpPost = (url, bodyJSON) => window.axios.post(url, bodyJSON);
 const httpGetJSON = async (url) => {
   const res = await window.axios.get(url);
   if (res.status === 204) return null;
   return res.data;
 };
-
 const setMeUI = (name) => {
   const meSpan = document.getElementById("me-name");
   if (meSpan) meSpan.textContent = name || "";
 };
-
 const saveAuthToSession = (auth) => {
-  if (!auth) {
-    sessionStorage.removeItem(AUTH_USER_KEY);
-    return;
-  }
+  if (!auth) return sessionStorage.removeItem(AUTH_USER_KEY);
   sessionStorage.setItem(
     AUTH_USER_KEY,
     JSON.stringify({
@@ -38,15 +31,14 @@ const saveAuthToSession = (auth) => {
       id: auth.id ?? null,
       email: auth.email ?? null,
       nickname: auth.nickname ?? null,
+      paid: !!auth.paid,
       ts: Date.now(),
     })
   );
   if (auth.email) sessionStorage.setItem(LAST_EMAIL_KEY, auth.email);
 };
 
-/* ==============================
- * 연결 상태 표시
- * ============================== */
+/* ------------ 연결 상태/프레즌스 ------------ */
 const updateConnectionStatus = (state) => {
   const badge = document.getElementById("conn-status");
   if (!badge) return;
@@ -61,10 +53,12 @@ const updateConnectionStatus = (state) => {
     badge.className = "badge badge--warn";
   }
 };
+const updatePresence = (n) => {
+  const el = document.getElementById("online-count");
+  if (el) el.textContent = `온라인 ${n}`;
+};
 
-/* ==============================
- * 메시지 UI
- * ============================== */
+/* ------------ 메시지 UI ------------ */
 const appendMessage = ({ text, me = false, who = "?", time = nowHHMM() }) => {
   const list = document.getElementById("messages");
   if (!list) return;
@@ -95,46 +89,49 @@ const appendMessage = ({ text, me = false, who = "?", time = nowHHMM() }) => {
   list.scrollTop = list.scrollHeight;
 };
 
-/* ==============================
- * 입력창 사이즈 & 이벤트
- * ============================== */
+/* ------------ 소켓 ------------ */
+let socket = null;
+let typingTimer = null;
+const emitTyping = (on) => socket && socket.emit("chat:typing", !!on);
+
+/* ------------ 입력 UX / 전송 ------------ */
 const autosize = (ta) => {
   if (!ta) return;
   ta.style.height = "auto";
   ta.style.height = Math.min(160, ta.scrollHeight) + "px";
 };
-
 const onInput = () => {
   const input = document.getElementById("message-input");
   autosize(input);
-  // TODO: socket.emit('chat:typing', true/false)
-};
 
-/* ==============================
- * 전송/수신
- * ============================== */
+  // typing on
+  emitTyping(true);
+  if (typingTimer) clearTimeout(typingTimer);
+  typingTimer = setTimeout(() => emitTyping(false), 700);
+};
 const sendMessage = () => {
   const input = document.getElementById("message-input");
   if (!input) return;
+
+  // 자동완성 패널이 열려 있으면 먼저 확정
+  if (AC.visible) {
+    AC.acceptCurrent();
+    return; // 한 번 더 Enter 하면 전송
+  }
+
   const text = (input.value || "").trim();
   if (!text) return;
 
   const meName = window.__ME_NAME__ || "Me";
   appendMessage({ text, me: true, who: meName });
 
-  // TODO: socket.emit('chat:message', { text });
+  socket && socket.emit("chat:message", { text });
 
   input.value = "";
   autosize(input);
 };
 
-const onIncomingMessage = ({ text, who = "Other", time = nowHHMM() }) => {
-  appendMessage({ text, me: false, who, time });
-};
-
-/* ==============================
- * 세션 동기화: 서버 → sessionStorage
- * ============================== */
+/* ------------ 서버-세션 → 세션스토리지 ------------ */
 const syncAuthToSessionStorage = async () => {
   try {
     const me = await httpGetJSON("/talk/me");
@@ -143,12 +140,10 @@ const syncAuthToSessionStorage = async () => {
       return null;
     }
     saveAuthToSession(me);
-
     const displayName = me.email || me.nickname || `U-${me.id}`;
     window.__ME_NAME__ = displayName;
     window.__PROVIDER__ = me.provider || "local";
     setMeUI(displayName);
-
     return me;
   } catch (e) {
     console.warn("[/talk/me] failed:", e);
@@ -156,50 +151,41 @@ const syncAuthToSessionStorage = async () => {
   }
 };
 
-/* ==============================
- * 로그아웃
- * ============================== */
+/* ------------ 로그아웃 ------------ */
 const handleLogout = async () => {
   const provider = window.__PROVIDER__ || document.getElementById("chat-app")?.dataset.provider || "local";
-
-  // 1) (클라) Kakao SDK 토큰 정리(있을 때)
   if (provider === "kakao" && window.Kakao) {
     try {
-      if (!Kakao.isInitialized() && window.KAKAO_JS_KEY) {
-        Kakao.init(window.KAKAO_JS_KEY);
-      }
-      if (Kakao.Auth?.getAccessToken()) {
-        Kakao.Auth.logout(() => {});
-      }
+      if (!Kakao.isInitialized() && window.KAKAO_JS_KEY) Kakao.init(window.KAKAO_JS_KEY);
+      if (Kakao.Auth?.getAccessToken()) Kakao.Auth.logout(() => {});
     } catch (e) {
       console.warn("[client kakao logout] failed:", e);
     }
   }
-
-  // 2) (서버) 세션 삭제(/talk/logout)
   try {
     await httpPost("/talk/logout");
-  } catch (e) {
-    console.warn("[server logout] failed:", e);
-  }
-
-  // 3) sessionStorage 정리
+  } catch {}
   try {
     sessionStorage.removeItem(AUTH_USER_KEY);
   } catch {}
-
-  // 4) 메인으로 이동
   window.location.replace("/main");
 };
 
-/* ==============================
- * $p 자동완성 모듈
- * ============================== */
-const initAutocomplete = (inputSelector = "#message-input") => {
-  const ta = document.querySelector(inputSelector);
-  if (!ta) return;
+/* ==================================================================
+ *                 ⬇⬇⬇  $p. 자동완성 (클래식)  ⬇⬇⬇
+ * ================================================================== */
+let AC = {
+  panel: null,
+  items: [],
+  index: -1,
+  visible: false,
+  meta: {},
+  lastKeys: [],
+};
 
-  // 패널 생성
+const buildClassicPanel = () => {
+  if (AC.panel) return;
+
   const chatCard = document.getElementById("chat-app");
   if (!chatCard) return;
   chatCard.style.position = chatCard.style.position || "relative";
@@ -223,204 +209,201 @@ const initAutocomplete = (inputSelector = "#message-input") => {
   panel.setAttribute("role", "listbox");
   chatCard.appendChild(panel);
 
-  // 상태
-  let items = [];
-  let focused = -1;
-  let lastKeys = [];
-  let suggestMap = {};
-
-  const hidePanel = () => {
-    panel.style.display = "none";
-    panel.innerHTML = "";
-    items = [];
-    focused = -1;
-    lastKeys = [];
-    suggestMap = {};
-  };
-
-  const escapeHtml = (s = "") => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-  const renderMarkdownLite = (md = "") => {
-    let safe = escapeHtml(md);
-    safe = safe.replace(/```(\w+)?\n([\s\S]*?)```/g, (m, lang, code) => {
-      return `<pre><code class="lang-${lang || ""}">${escapeHtml(code)}</code></pre>`;
-    });
-    safe = safe.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-    safe = safe.replace(/`([^`]+)`/g, "<code>$1</code>");
-    safe = safe.replace(/\n/g, "<br>");
-    return safe;
-  };
-
-  const highlight = (idx) => {
-    items.forEach((el, i) => {
-      el.style.background = i === idx ? "#f3f4f6" : "transparent";
-    });
-    focused = idx;
-  };
-
-  const isFunctionMeta = (meta) => {
-    const t = String(meta?.["!type"] || "");
-    return /^fn\s*\(/i.test(t) || t.startsWith("fn(");
-  };
-
-  const applySuggestion = (word, { send = false } = {}) => {
-    const meta = suggestMap[word] || {};
-    const addParens = isFunctionMeta(meta);
-
-    const v = ta.value;
-    const caret = ta.selectionStart;
-    const left = v.slice(0, caret);
-    const idxP = left.lastIndexOf("$p");
-    if (idxP < 0) return hidePanel();
-
-    const seg = left.slice(idxP);
-    const lastDot = seg.lastIndexOf(".");
-    const replaceStart = lastDot >= 0 ? idxP + lastDot + 1 : idxP + 2;
-
-    const before = v.slice(0, replaceStart);
-    const after = v.slice(caret);
-    const mid = addParens ? `${word}()` : word;
-
-    const next = before + mid + after;
-    ta.value = next;
-
-    // 커서: 함수면 괄호 안
-    const newCaret = addParens ? before.length + word.length + 1 : before.length + mid.length;
-    ta.setSelectionRange(newCaret, newCaret);
-
-    hidePanel();
-    ta.focus();
-
-    if (send && typeof sendMessage === "function") {
-      sendMessage();
-    }
-  };
-
-  const renderPanel = (resultObj) => {
-    const keys = Object.keys(resultObj || {});
-    lastKeys = keys.slice();
-    suggestMap = resultObj || {};
-
-    if (keys.length === 0) return hidePanel();
-
-    if (keys.length > 1) {
-      panel.innerHTML = `
-        <div style="margin-bottom:6px;color:#6b7280">사용가능 함수</div>
-        <div id="ac-list"></div>
-      `;
-      const list = panel.querySelector("#ac-list");
-      keys.forEach((k, idx) => {
-        const item = document.createElement("div");
-        item.className = "ac-item";
-        item.textContent = k;
-        Object.assign(item.style, {
-          padding: "6px 8px",
-          borderRadius: "8px",
-          cursor: "pointer",
-        });
-        item.setAttribute("role", "option");
-        item.onclick = () => applySuggestion(k);
-        item.onmouseenter = () => highlight(idx);
-        list.appendChild(item);
-      });
-      items = Array.from(panel.querySelectorAll(".ac-item"));
-      focused = -1;
-    } else {
-      const k = keys[0];
-      const meta = resultObj[k] || {};
-      panel.innerHTML = `
-        <div style="margin-bottom:6px;color:#6b7280">사용가능 함수</div>
-        <div class="ac-item" role="option" style="padding:6px 8px;border-radius:8px;cursor:pointer;font-weight:700">${k}</div>
-        <div style="margin-top:8px;color:#374151">${meta["!doc"] ? renderMarkdownLite(meta["!doc"]) : ""}</div>
-        <div style="margin-top:8px;color:#111827">${meta["!type"] ? "<code>" + escapeHtml(meta["!type"]) + "</code>" : ""}</div>
-      `;
-      const it = panel.querySelector(".ac-item");
-      it.onclick = () => applySuggestion(k);
-      items = [it];
-      focused = -1;
-    }
-    panel.style.display = "block";
-  };
-
-  // 입력 → 디바운스 요청
-  let timer = 0;
-  const debounce =
-    (fn, ms = 250) =>
-    (...args) => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => fn(...args), ms);
-    };
-
-  const fetchSuggest = async () => {
-    const val = ta.value || "";
-    if (!val.trim().startsWith("$p")) return hidePanel();
-    try {
-      const { data } = await window.axios.post("/auto/suggest", { key: val });
-      renderPanel((data && data.result) || {});
-    } catch {
-      hidePanel();
-    }
-  };
-
-  ta.addEventListener("input", debounce(fetchSuggest, 250));
-
-  // 자동완성 키 처리 핸들러 — true를 리턴하면 “소비됨”
-  const handleAcKeydown = (e) => {
-    if (panel.style.display === "none") return false;
-
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      if (!items.length) return true;
-      const next = focused < 0 ? 0 : Math.min(focused + 1, items.length - 1);
-      highlight(next);
-      return true;
-    }
-    if (e.key === "ArrowUp") {
-      e.preventDefault();
-      if (!items.length) return true;
-      const prev = focused < 0 ? items.length - 1 : Math.max(focused - 1, 0);
-      highlight(prev);
-      return true;
-    }
-    if (e.key === "Tab") {
-      if (focused >= 0) {
-        e.preventDefault();
-        applySuggestion(items[focused].textContent.trim());
-        return true;
-      }
-      return false;
-    }
-    if (e.key === "Enter") {
-      if (focused >= 0) {
-        e.preventDefault();
-        applySuggestion(items[focused].textContent.trim(), {
-          send: e.ctrlKey || e.metaKey,
-        });
-        return true;
-      } else if (lastKeys.length === 1) {
-        e.preventDefault();
-        applySuggestion(lastKeys[0], { send: e.ctrlKey || e.metaKey });
-        return true;
-      }
-      return false;
-    }
-    if (e.key === "Escape") {
-      hidePanel();
-      return true;
-    }
-    return false;
-  };
-
-  // 외부에서도 접근 가능(필요 시)
-  ta.__acHandleKeydown = handleAcKeydown;
-
-  // 포커스 아웃 시 패널 닫기
-  ta.addEventListener("blur", () => setTimeout(hidePanel, 100));
+  AC.panel = panel;
 };
 
-/* ==============================
- * 초기화
- * ============================== */
+const hidePanel = () => {
+  if (!AC.panel) return;
+  AC.panel.style.display = "none";
+  AC.panel.innerHTML = "";
+  AC.visible = false;
+  AC.items = [];
+  AC.meta = {};
+  AC.index = -1;
+  AC.lastKeys = [];
+};
+
+const escapeHtml = (s = "") => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const renderMarkdownLite = (md = "") => {
+  let safe = escapeHtml(md);
+  safe = safe.replace(/```(\w+)?\n([\s\S]*?)```/g, (m, lang, code) => `<pre><code class="lang-${lang || ""}">${escapeHtml(code)}</code></pre>`);
+  safe = safe.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  safe = safe.replace(/`([^`]+)`/g, "<code>$1</code>");
+  safe = safe.replace(/\n/g, "<br>");
+  return safe;
+};
+
+const highlight = (idx) => {
+  const nodes = AC.panel?.querySelectorAll(".ac-item");
+  if (!nodes) return;
+  nodes.forEach((el, i) => (el.style.background = i === idx ? "#f3f4f6" : "transparent"));
+  AC.index = idx;
+};
+
+const getSegmentContext = () => {
+  const ta = document.getElementById("message-input");
+  if (!ta) return null;
+  const pos = ta.selectionStart ?? ta.value.length;
+  const lastNL = ta.value.lastIndexOf("\n", pos - 1);
+  const lineStart = lastNL < 0 ? 0 : lastNL + 1;
+  const line = ta.value.slice(lineStart, pos);
+  const pIndex = line.lastIndexOf("$p");
+  if (pIndex < 0) return null;
+  const segment = line.slice(pIndex);
+  const absStart = lineStart + pIndex;
+  return { segment, absStart, caret: pos, ta };
+};
+
+const isFnType = (meta) => {
+  const t = String(meta?.["!type"] || "");
+  return /^fn\s*\(/i.test(t) || t.startsWith("fn(");
+};
+
+const applyCompletion = (word) => {
+  const ctx = getSegmentContext();
+  if (!ctx) return hidePanel();
+  const { segment, absStart, caret, ta } = ctx;
+
+  const endsWithDot = segment.endsWith(".");
+  const lastDot = segment.lastIndexOf(".");
+  let replaceFrom = caret;
+
+  if (lastDot >= 0) {
+    const prefixStart = absStart + lastDot + 1;
+    replaceFrom = prefixStart;
+  } else {
+    if (!endsWithDot) {
+      ta.setRangeText(".", caret, caret, "end");
+    }
+    replaceFrom = ta.selectionStart;
+  }
+
+  const meta = AC.meta?.[word] || {};
+  const needParens = isFnType(meta);
+  const insert = needParens ? `${word}()` : word;
+
+  const before = ta.value.slice(0, replaceFrom);
+  const after = ta.value.slice(caret);
+  ta.value = before + insert + after;
+
+  const newCaret = before.length + (needParens ? word.length + 1 : insert.length);
+  ta.setSelectionRange(newCaret, newCaret);
+
+  autosize(ta);
+};
+
+const renderPanel = (resultObj) => {
+  if (!AC.panel) return;
+  const keys = Object.keys(resultObj || {}).filter((k) => k !== "!type" && k !== "!doc");
+  AC.lastKeys = keys.slice();
+  AC.meta = resultObj || {};
+
+  if (keys.length === 0) return hidePanel();
+
+  if (keys.length > 1) {
+    AC.panel.innerHTML = `
+      <div style="margin-bottom:6px;color:#6b7280">사용가능 함수</div>
+      <div id="ac-list"></div>
+    `;
+    const list = AC.panel.querySelector("#ac-list");
+    keys.forEach((k, idx) => {
+      const item = document.createElement("div");
+      item.className = "ac-item";
+      item.textContent = k;
+      Object.assign(item.style, {
+        padding: "6px 8px",
+        borderRadius: "8px",
+        cursor: "pointer",
+      });
+      item.setAttribute("role", "option");
+      item.onclick = () => {
+        applyCompletion(k);
+        hidePanel();
+      };
+      item.onmouseenter = () => highlight(idx);
+      list.appendChild(item);
+    });
+  } else {
+    const k = keys[0];
+    const meta = resultObj[k] || {};
+    AC.panel.innerHTML = `
+      <div style="margin-bottom:6px;color:#6b7280">사용가능 함수</div>
+      <div class="ac-item" role="option" style="padding:6px 8px;border-radius:8px;cursor:pointer;font-weight:700">${k}</div>
+      <div style="margin-top:8px;color:#374151">${meta["!doc"] ? renderMarkdownLite(meta["!doc"]) : ""}</div>
+      <div style="margin-top:8px;color:#111827">${meta["!type"] ? "<code>" + escapeHtml(meta["!type"]) + "</code>" : ""}</div>
+    `;
+    const it = AC.panel.querySelector(".ac-item");
+    it.onclick = () => {
+      applyCompletion(k);
+      hidePanel();
+    };
+  }
+
+  AC.items = keys;
+  AC.index = keys.length ? 0 : -1;
+  AC.panel.style.display = "block";
+  AC.visible = true;
+};
+
+let acDebounce = 0;
+const queryAutocomplete = async () => {
+  const ctx = getSegmentContext();
+  if (!ctx) return hidePanel();
+  try {
+    const { data } = await window.axios.post("/auto/suggest", { key: ctx.ta.value });
+    renderPanel((data && data.result) || {});
+  } catch {
+    hidePanel();
+  }
+};
+
+const debounceQuery = () => {
+  if (acDebounce) clearTimeout(acDebounce);
+  acDebounce = setTimeout(queryAutocomplete, 200);
+};
+
+const onInputAC = () => {
+  onInput(); // 사이즈/타이핑
+  debounceQuery(); // 자동완성 질의
+};
+
+const onKeydownAC = (e) => {
+  if (!AC.visible) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+    return;
+  }
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    AC.index = Math.min(AC.index + 1, AC.items.length - 1);
+    highlight(AC.index);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    AC.index = Math.max(AC.index - 1, 0);
+    highlight(AC.index);
+  } else if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) {
+    e.preventDefault();
+    const key = AC.items[AC.index] || AC.lastKeys[0];
+    if (key) applyCompletion(key);
+    hidePanel();
+  } else if (e.key === "Escape") {
+    e.preventDefault();
+    hidePanel();
+  }
+};
+
+const initAutocompleteClassic = () => {
+  buildClassicPanel();
+  const input = document.getElementById("message-input");
+  if (!input) return;
+  input.addEventListener("input", onInputAC);
+  input.addEventListener("keydown", onKeydownAC);
+};
+/* ============================== 자동완성 끝 ============================== */
+
+/* ------------ 초기화 ------------ */
 document.addEventListener("DOMContentLoaded", async () => {
   const root = document.getElementById("chat-app");
   const ssrMe = root?.dataset.me || null;
@@ -434,45 +417,53 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   await syncAuthToSessionStorage();
 
-  updateConnectionStatus("connecting");
-  // TODO: socket.on('connect', () => updateConnectionStatus('connected'));
-  // TODO: socket.on('disconnect', () => updateConnectionStatus('disconnected'));
+  // ★ socket.io: 원격 소켓 URL이 있으면 그쪽으로, 없으면 같은 오리진
+  try {
+    const opts = { withCredentials: true };
+    // 필요시 강제 웹소켓만: opts.transports = ['websocket'];
+    socket = window.SOCKET_URL ? io(window.SOCKET_URL, opts) : io(opts);
+
+    updateConnectionStatus("connecting");
+    socket.on("connect", () => updateConnectionStatus("connected"));
+    socket.on("disconnect", () => updateConnectionStatus("disconnected"));
+    socket.on("connect_error", () => updateConnectionStatus("disconnected"));
+    socket.on("presence", ({ online }) => updatePresence(online));
+    socket.on("chat:message", (payload) => appendMessage({ ...payload, me: false }));
+
+    const typingEl = document.getElementById("typing-indicator");
+    let hideTimer = null;
+    socket.on("chat:typing", ({ who, typing }) => {
+      if (!typingEl) return;
+      if (typing) {
+        typingEl.style.display = "block";
+        typingEl.textContent = `${who || "상대"}가 입력 중…`;
+        if (hideTimer) clearTimeout(hideTimer);
+        hideTimer = setTimeout(() => (typingEl.style.display = "none"), 1200);
+      } else {
+        typingEl.style.display = "none";
+      }
+    });
+  } catch (e) {
+    console.warn("[socket] init failed:", e);
+  }
+
+  // 자동완성
+  initAutocompleteClassic();
 
   // 바인딩
   document.getElementById("btn-logout")?.addEventListener("click", handleLogout);
   document.getElementById("btn-send")?.addEventListener("click", sendMessage);
 
+  // 초기 입력창 사이즈
   const input = document.getElementById("message-input");
-  if (input) {
-    // 자동완성 초기화
-    initAutocomplete("#message-input");
+  if (input) autosize(input);
 
-    input.addEventListener("input", onInput);
-
-    input.addEventListener("keydown", (e) => {
-      // 1) 자동완성 패널이 처리할 키면 여기서 끝
-      if (typeof input.__acHandleKeydown === "function") {
-        const consumed = input.__acHandleKeydown(e);
-        if (consumed) return;
-      }
-      // 2) 기본 엔터 동작 유지: Enter=전송 / Shift+Enter=줄바꿈
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-      }
-    });
-
-    autosize(input);
-  }
-
-  // 환영 메시지(옵션)
   appendMessage({ text: "채팅에 오신 걸 환영합니다!", who: "System" });
 });
 
-// 디버그용(선택)
+// 디버그
 window.ChatUI = {
   updateConnectionStatus,
   appendMessage,
-  onIncomingMessage,
   syncAuthToSessionStorage,
 };
