@@ -45,15 +45,18 @@ const handleLocalLogin = async () => {
 
   setLoading(true);
   try {
-    // 서버 세션에 로그인 상태만 기록 
     if (!window.axios) throw new Error("axios not loaded");
-    await window.axios.post("/auth/local-login", { id, email: user.email || id });
+    const res = await window.axios.post("/auth/local-login", { id, email: user.email || id });
+    const data = res?.data || {};
 
-    // 마지막 로그인 자동 채움 용
     sessionStorage.setItem(LAST_EMAIL_KEY, user.email || id);
 
-    // 이동
-    window.location.href = TALK_URL;
+    if (data.requiresPayment) {
+      // 원하는 문구 알림
+      alert(data.message || "채팅을 사용하기 위해서는 결제가 필요합니다");
+    }
+    // 서버가 내려준 redirect 우선
+    window.location.href = data.redirect || "/pay";
   } catch (e) {
     console.error("[local login]", e);
     showError("로그인 처리 중 오류가 발생했습니다.");
@@ -84,13 +87,6 @@ const handleEnterKey = (e) => {
 
 // ── 바인딩
 document.addEventListener("DOMContentLoaded", () => {
-  // 마지막 로그인 자동 채움
-  // const last = sessionStorage.getItem(LAST_EMAIL_KEY);
-  // if (last) {
-  //   const el = document.getElementById("login-id");
-  //   if (el && !el.value) el.value = last;
-  // }
-
   document.getElementById("login-id")?.addEventListener("keydown", handleEnterKey);
   document.getElementById("login-pw")?.addEventListener("keydown", handleEnterKey);
   document.getElementById("btn-login")?.addEventListener("click", handleLocalLogin);

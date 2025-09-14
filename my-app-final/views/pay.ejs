@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>결제</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/stylesheets/style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card pay-card" role="region" aria-labelledby="pay-title">
+        <h1 id="pay-title">채팅 이용 결제</h1>
+        <p class="muted"><%= who %> 님, 채팅을 사용하기 위해서는 결제가 필요합니다.</p>
+
+        <!-- 버튼 3개: 가로 한 줄 -->
+        <div class="pay-actions" role="group" aria-label="결제 동작">
+          <form method="post" action="/pay/mock/success">
+            <button class="btn btn-secondary" type="submit">모의 결제 성공</button>
+          </form>
+          <form method="post" action="/pay/mock/fail">
+            <button class="btn btn-secondary" type="submit">모의 결제 실패</button>
+          </form>
+          <!-- 실제 KCP 연동 전까지는 버튼만 -->
+          <form onsubmit="return false">
+            <button class="btn btn-primary" type="button" id="btn-kcp">결제하기</button>
+          </form>
+        </div>
+
+        <div class="row-center" style="margin-top: 16px">
+          <a href="/pay/leave">돌아가기</a>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // (선택) 기존에 ?from=... 으로 들어오면 주소 정리
+      if (location.search) history.replaceState(null, "", location.pathname);
+      // (임시) KCP 버튼 클릭 핸들러
+      document.getElementById("btn-kcp")?.addEventListener("click", () => {
+        alert("NHN KCP 연동 예정");
+      });
+    </script>
+  </body>
+</html>

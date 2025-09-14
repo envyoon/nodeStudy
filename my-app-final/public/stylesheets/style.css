@@ -289,12 +289,11 @@ input::placeholder {
   border: 1px solid #fecaca;
 }
 
-
 /* 기존 .input-bar 선언을 이걸로 교체 */
 .input-bar {
   padding: 10px;
   display: grid;
-  grid-template-columns: 1fr auto; 
+  grid-template-columns: 1fr auto;
   border-top: 1px solid var(--line);
 }
 
@@ -305,5 +304,35 @@ input::placeholder {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 16px;    /* 버튼 크기 적당히 */
+  padding: 10px 16px; /* 버튼 크기 적당히 */
+}
+
+/* === Pay page only (scoped) === */
+.pay-card .pay-actions {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.pay-card .pay-actions form {
+  flex: 1; /* 3개 버튼 동일 너비 */
+}
+.pay-card .pay-actions form button {
+  width: 100%;
+}
+
+/* 회색 보조 버튼 */
+.pay-card .btn-secondary {
+  background: #f3f4f6;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+}
+.pay-card .btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+/* 좁은 화면에서는 자동으로 세로 스택 */
+@media (max-width: 420px) {
+  .pay-card .pay-actions {
+    flex-direction: column;
+  }
 }
