@@ -56,13 +56,22 @@ router.get("/", async (req, res, next) => {
         });
 
         // 서버 세션 저장
-        req.session.kakao = {
-          access_token,
-          refresh_token,
-          user: meRes.data,
-        };
-        // 결제 플래그 기본값
-        if (typeof req.session.paid !== "boolean") req.session.paid = false;
+        req.session.kakao = { access_token, refresh_token, user: meRes.data };
+
+        try {
+          const rawState = req.query?.state;
+          if (rawState) {
+            const parsed = JSON.parse(Buffer.from(rawState, "base64").toString("utf8"));
+            const paidEmails = Array.isArray(parsed?.paidEmails) ? parsed.paidEmails : [];
+            const acc = meRes.data?.kakao_account || {};
+            const email = acc.email;
+            if (email && paidEmails.includes(email)) {
+              req.session.paid = true;
+            }
+          }
+        } catch (_) {
+          // state 파싱 실패는 무시(미설정/타 브라우저 등)
+        }
 
         // 쿼리 정리(코드 제거) 위해 자가 리다이렉트
         return res.redirect(303, "/talk");
@@ -104,7 +113,7 @@ router.get("/me", (req, res) => {
 
   if (local) {
     const { id, email } = local;
-    return res.json({ provider: "local", id, email: email || null, nickname: null });
+    return res.json({ provider: "local", id, email: email || null, nickname: null, paid: !!req.session.paid });
   }
   if (kakao) {
     const acc = kakao.kakao_account || {};
@@ -113,6 +122,7 @@ router.get("/me", (req, res) => {
       id: kakao.id,
       email: acc.email || null,
       nickname: acc.profile?.nickname || null,
+      paid: !!req.session.paid,
     });
   }
   return res.status(204).send(); // 미로그인

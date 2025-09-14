@@ -5,26 +5,65 @@
     <title>결제</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="/stylesheets/style.css" />
+    <script>
+      /* 반드시 KCP JS보다 먼저 선언 */
+      function m_Completepayment(FormOrJson, closeEvent) {
+        var frm = document.kcpForm;
+        GetField(frm, FormOrJson); // KCP가 내려준 필드를 폼에 매핑
+        if (frm.res_cd.value === "0000") {
+          // 승인 API 호출로 서버가 결론냄
+          frm.submit();
+        } else {
+          alert("[" + frm.res_cd.value + "] " + frm.res_msg.value);
+          if (typeof closeEvent === "function") closeEvent();
+        }
+      }
+      function jsf__pay(form) {
+        try {
+          KCP_Pay_Execute_Web(form);
+        } catch (e) {}
+      }
+    </script>
+    <script src="<%= kcpJsUrl %>"></script>
   </head>
   <body>
     <div class="wrap">
       <div class="card pay-card" role="region" aria-labelledby="pay-title">
         <h1 id="pay-title">채팅 이용 결제</h1>
         <p class="muted"><%= who %> 님, 채팅을 사용하기 위해서는 결제가 필요합니다.</p>
+        <% if (meta && meta.error) { %>
+        <p class="muted" style="color: #d00"><%= meta.error %></p>
+        <% } %>
 
         <!-- 버튼 3개: 가로 한 줄 -->
         <div class="pay-actions" role="group" aria-label="결제 동작">
-          <form method="post" action="/pay/mock/success">
-            <button class="btn btn-secondary" type="submit">모의 결제 성공</button>
-          </form>
-          <form method="post" action="/pay/mock/fail">
-            <button class="btn btn-secondary" type="submit">모의 결제 실패</button>
-          </form>
-          <!-- 실제 KCP 연동 전까지는 버튼만 -->
           <form onsubmit="return false">
             <button class="btn btn-primary" type="button" id="btn-kcp">결제하기</button>
           </form>
         </div>
+
+        <!-- KCP 결제용 숨김 폼 (표준 웹) -->
+        <form name="kcpForm" id="kcpForm" method="post" action="/pay/kcp/pay" style="display: none">
+          <!-- 필수 기본 -->
+          <input type="hidden" name="site_cd" value="<%= kcpSiteCd %>" />
+          <input type="hidden" name="pay_method" value="100000000000" />
+          <input type="hidden" name="quotaopt" value="12" />
+
+          <!-- KCP가 채우는 필드 -->
+          <input type="hidden" name="res_cd" value="" />
+          <input type="hidden" name="res_msg" value="" />
+          <input type="hidden" name="enc_info" value="" />
+          <input type="hidden" name="enc_data" value="" />
+          <input type="hidden" name="tran_cd" value="" />
+
+          <!-- 주문/상품/금액/구매자 -->
+          <input type="hidden" name="ordr_idxx" value="<%= order.id %>" />
+          <input type="hidden" name="good_name" value="<%= order.name %>" />
+          <input type="hidden" name="good_mny" value="<%= order.amount %>" />
+          <input type="hidden" name="buyr_name" value="<%= buyer.name %>" />
+          <input type="hidden" name="buyr_tel2" value="<%= buyer.tel %>" />
+          <input type="hidden" name="buyr_mail" value="<%= buyer.email %>" />
+        </form>
 
         <div class="row-center" style="margin-top: 16px">
           <a href="/pay/leave">돌아가기</a>
@@ -33,11 +72,14 @@
     </div>
 
     <script>
-      // (선택) 기존에 ?from=... 으로 들어오면 주소 정리
+      // 기존에 ?from=... 으로 들어오면 주소 정리
       if (location.search) history.replaceState(null, "", location.pathname);
-      // (임시) KCP 버튼 클릭 핸들러
-      document.getElementById("btn-kcp")?.addEventListener("click", () => {
-        alert("NHN KCP 연동 예정");
+
+      // "결제하기" 클릭 → 표준결제창 실행
+      document.getElementById("btn-kcp")?.addEventListener("click", function () {
+        var form = document.getElementById("kcpForm");
+        // 필요 시 여기서 ordr_idxx 재생성/금액 검증 가능
+        jsf__pay(form);
       });
     </script>
   </body>

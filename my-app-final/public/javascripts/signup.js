@@ -37,7 +37,7 @@ const handleCreate = () => {
 
   if (!id) return showError("아이디를 입력하세요.");
   if (id.length < 3) return showError("아이디는 3자 이상이어야 합니다.");
-  if (!email) return showError("이메일을 입력하세요."); 
+  if (!email) return showError("이메일을 입력하세요.");
   if (!isEmail(email)) return showError("이메일 형식이 올바르지 않습니다.");
   if (!pw) return showError("비밀번호를 입력하세요.");
   if (pw.length < 6) return showError("비밀번호는 6자 이상이어야 합니다.");
@@ -47,7 +47,7 @@ const handleCreate = () => {
   if (users.some((u) => u.id === id)) return showError("이미 사용 중인 아이디입니다.");
   if (users.some((u) => u.email === email)) return showError("이미 사용 중인 이메일입니다.");
 
-  users.push({ id, email, pw, createdAt: new Date().toISOString() });
+  users.push({ id, email, pw, paid: false, createdAt: new Date().toISOString() });
   saveUsers(users);
 
   // 마지막 로그인 자동 채움용

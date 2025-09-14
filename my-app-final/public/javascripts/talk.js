@@ -1,8 +1,21 @@
 /* ==============================
  * 공통 상수/유틸
  * ============================== */
-const AUTH_USER_KEY = "auth:user:v1";        // 세션스토리지에 로그인 사용자 정보 저장
+const AUTH_USER_KEY = "auth:user:v1"; // 세션스토리지에 로그인 사용자 정보 저장
 const LAST_EMAIL_KEY = "contents:lastEmail"; // 자동 채움 등에 쓰던 키 (선택)
+const STORAGE_USERS = "users:v1";
+const loadUsers = () => {
+  try {
+    return JSON.parse(sessionStorage.getItem(STORAGE_USERS) || "[]");
+  } catch {
+    return [];
+  }
+};
+const saveUsers = (arr) => {
+  try {
+    sessionStorage.setItem(STORAGE_USERS, JSON.stringify(arr));
+  } catch {}
+};
 
 const nowHHMM = () => {
   const d = new Date();
@@ -22,8 +35,8 @@ const httpPost = async (url, bodyJSON) => {
 
 const httpGetJSON = async (url) => {
   const res = await window.axios.get(url);
-  if (res.status === 204) return null;       // 미로그인 등 No Content
-  return res.data;                            // JSON 본문
+  if (res.status === 204) return null; // 미로그인 등 No Content
+  return res.data; // JSON 본문
 };
 
 const setMeUI = (name) => {
@@ -155,6 +168,23 @@ const syncAuthToSessionStorage = async () => {
     window.__PROVIDER__ = me.provider || "local";
     setMeUI(displayName);
 
+    const users = loadUsers();
+    const idx = users.findIndex((u) => (me.email && u.email === me.email) || (!me.email && u.id === me.id));
+    if (idx >= 0) {
+      users[idx].paid = !!me.paid;
+      if (!users[idx].email && me.email) users[idx].email = me.email;
+    } else {
+      users.push({
+        id: me.id || me.email || "user",
+        email: me.email || null,
+        pw: null,
+        paid: !!me.paid,
+        provider: me.provider,
+        createdAt: new Date().toISOString(),
+      });
+    }
+    sessionStorage.setItem("users:v1", JSON.stringify(users));
+
     return me;
   } catch (e) {
     console.warn("[/talk/me] failed:", e);
@@ -166,9 +196,7 @@ const syncAuthToSessionStorage = async () => {
  * 로그아웃
  * ============================== */
 const handleLogout = async () => {
-  const provider =
-    window.__PROVIDER__ ||
-    (document.getElementById("chat-app")?.dataset.provider || "local");
+  const provider = window.__PROVIDER__ || document.getElementById("chat-app")?.dataset.provider || "local";
 
   // 1) (클라) Kakao SDK 토큰 정리(있을 때)
   if (provider === "kakao" && window.Kakao) {

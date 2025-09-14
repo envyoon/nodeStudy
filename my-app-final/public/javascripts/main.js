@@ -5,6 +5,14 @@ const STORAGE_USERS = "users:v1";
 const LAST_EMAIL_KEY = "contents:lastEmail";
 
 // ── 유틸
+const getPaidEmails = () => {
+  try {
+    const list = JSON.parse(sessionStorage.getItem(STORAGE_USERS) || "[]");
+    return list.filter((u) => u && u.paid && u.email).map((u) => String(u.email));
+  } catch {
+    return [];
+  }
+};
 const showError = (msg = "") => {
   const el = document.getElementById("login-error");
   if (!el) return;
@@ -25,10 +33,20 @@ const loadUsers = () => {
     return [];
   }
 };
-const normalize = (s) => (s || "").trim().toLowerCase();
+const normalize = (s) =>
+  String(s ?? "")
+    .trim()
+    .toLowerCase();
 const findUser = (idOrEmail, pw) => {
   const needle = normalize(idOrEmail);
-  return loadUsers().find((u) => (normalize(u.id) === needle || normalize(u.email) === needle) && u.pw === pw) || null;
+  return (
+    loadUsers().find(
+      (u) =>
+        u?.pw && // 로컬 가입자만
+        (normalize(u.id) === needle || normalize(u.email) === needle) &&
+        u.pw === pw
+    ) || null
+  );
 };
 
 // ── 일반 로그인(세션스토리지 검증 + 서버세션 세팅)
@@ -45,18 +63,17 @@ const handleLocalLogin = async () => {
 
   setLoading(true);
   try {
-    if (!window.axios) throw new Error("axios not loaded");
-    const res = await window.axios.post("/auth/local-login", { id, email: user.email || id });
-    const data = res?.data || {};
+    const res = await window.axios.post("/auth/local-login", {
+      id,
+      email: user.email || id,
+      paid: !!user.paid,
+    });
+    const data = res.data || {};
 
     sessionStorage.setItem(LAST_EMAIL_KEY, user.email || id);
 
-    if (data.requiresPayment) {
-      // 원하는 문구 알림
-      alert(data.message || "채팅을 사용하기 위해서는 결제가 필요합니다");
-    }
     // 서버가 내려준 redirect 우선
-    window.location.href = data.redirect || "/pay";
+    window.location.href = data.redirect || (data.requiresPayment ? "/pay" : "/talk");
   } catch (e) {
     console.error("[local login]", e);
     showError("로그인 처리 중 오류가 발생했습니다.");
@@ -71,9 +88,14 @@ const handleKakaoLogin = () => {
   if (!window.Kakao || !KAKAO_JS_KEY) return alert("Kakao SDK 또는 JS 키가 없습니다.");
   if (!Kakao.isInitialized()) Kakao.init(KAKAO_JS_KEY);
 
+  // users:v1에서 결제된 이메일들만 추출 → state로 전달
+  const statePayload = { v: 1, paidEmails: getPaidEmails() };
+  const state = btoa(JSON.stringify(statePayload)); // ASCII만 있으니 btoa로 충분
+
   Kakao.Auth.authorize({
     redirectUri: `${origin}${TALK_URL}`, // 콜백을 /talk 로
     prompt: "login",
+    state,
   });
 };
 
