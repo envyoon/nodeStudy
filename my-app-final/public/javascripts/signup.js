@@ -1,15 +1,28 @@
-// 세션스토리지 키들
-const STORAGE_USERS = "users:v1"; // 가입 사용자 목록 [{id, email, pw, createdAt}]
-const LAST_EMAIL_KEY = "contents:lastEmail";
-const RETURN_URL = "/main"; // 가입 후 돌아갈 곳(메인)
+// 전역 설정
+const STORAGE_USERS = "users:v1";
+const RETURN_URL = "/main";
 
-// 유틸
+/*********************************************************************************
+ * ================================= [START]유틸 함수 =============================
+ *********************************************************************************/
+
+/**
+ * 로그인에 실패 하였을 때 왜 실패 하였는지 보여주는 유틸입니다.
+ * @param {*} msg
+ * @returns
+ */
 const showError = (msg = "") => {
   const el = document.getElementById("signup-error");
   if (!el) return;
   el.textContent = msg;
   el.style.display = msg ? "block" : "none";
 };
+
+/**
+ * SessionStorage 에서 로그인 정보를 가져옵니다.
+ * (users:v1 / DB 구성을 하지 않아서 SessionSorage에서 가져옴.)
+ * @returns
+ */
 const loadUsers = () => {
   try {
     const raw = sessionStorage.getItem(STORAGE_USERS);
@@ -18,15 +31,28 @@ const loadUsers = () => {
     return [];
   }
 };
+
+/**
+ * 로그인 한 정보를 SessionStorage에 저장하는 함수입니다.
+ * @param {*} users
+ */
 const saveUsers = (users) => {
   try {
     sessionStorage.setItem(STORAGE_USERS, JSON.stringify(users));
   } catch {}
 };
 
-// 검증
+/**
+ * 정상적인 이메일 인지 체크하는 함수입니다.
+ * @param {*} v 
+ * @returns 
+ */
 const isEmail = (v) => /^\S+@\S+\.\S+$/.test(v);
 
+/**
+ * 회원가입 시 검증하는 로직입니다.
+ * @returns 
+ */
 const handleCreate = () => {
   showError("");
 
@@ -50,16 +76,23 @@ const handleCreate = () => {
   users.push({ id, email, pw, paid: false, createdAt: new Date().toISOString() });
   saveUsers(users);
 
-  // 메인으로 복귀
   window.location.href = RETURN_URL;
 };
 
+/**
+ * 엔터키를 누르면 '' 을 클릭하게 하는 함수입니다.
+ * @param {*} e
+ */
 const handleEnterKey = (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
     handleCreate();
   }
 };
+
+/*********************************************************************************
+ * ========================= [START] 이벤트 리스너 관련 ===========================
+ *********************************************************************************/
 
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-create")?.addEventListener("click", handleCreate);
@@ -70,3 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("signup-pw")?.addEventListener("keydown", handleEnterKey);
   document.getElementById("signup-pw2")?.addEventListener("keydown", handleEnterKey);
 });
+
+/*********************************************************************************
+ * =========================== [END] 이벤트 리스너 관련 ===========================
+ *********************************************************************************/

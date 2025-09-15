@@ -2,7 +2,8 @@
  * talk.js — socket + $p. 자동완성(클래식)
  * ============================== */
 const AUTH_USER_KEY = "auth:user:v1";
-const LAST_EMAIL_KEY = "contents:lastEmail";
+/* users:v1 저장소(메인 화면에서 쓰는 로컬 계정 리스트) */
+const STORAGE_USERS = "users:v1";
 
 /* ------------ 공용 유틸 ------------ */
 const nowHHMM = () => {
@@ -35,6 +36,36 @@ const saveAuthToSession = (auth) => {
       ts: Date.now(),
     })
   );
+  try {
+    if (auth.email) sessionStorage.setItem(LAST_EMAIL_KEY, auth.email);
+  } catch {}
+};
+
+/* ★ 결제 동기화: 서버가 paid:true면 users:v1에도 반영 */
+const upsertUserPaid = ({ email, id }, paid = true) => {
+  try {
+    const list = JSON.parse(sessionStorage.getItem(STORAGE_USERS) || "[]");
+    let found = false;
+    const norm = (s) =>
+      String(s || "")
+        .trim()
+        .toLowerCase();
+
+    const next = list.map((u) => {
+      if (!u) return u;
+      const hit = (email && u.email && norm(u.email) === norm(email)) || (id && u.id && norm(u.id) === norm(id));
+      if (hit) {
+        found = true;
+        return { ...u, paid: !!paid };
+      }
+      return u;
+    });
+
+    if (!found && (email || id)) {
+      next.push({ email: email || null, id: id || null, pw: "", paid: !!paid });
+    }
+    sessionStorage.setItem(STORAGE_USERS, JSON.stringify(next));
+  } catch {}
 };
 
 /* ------------ 연결 상태/프레즌스 ------------ */
@@ -114,8 +145,8 @@ const sendMessage = () => {
 
   // 자동완성 패널이 열려 있으면 먼저 확정
   if (AC.visible) {
-    AC.acceptCurrent();
-    return; // 한 번 더 Enter 하면 전송
+    const accepted = AC.acceptCurrent(); // ★ 없던 함수 추가
+    if (accepted) return; // 한 번 더 Enter 하면 전송
   }
 
   const text = (input.value || "").trim();
@@ -139,6 +170,10 @@ const syncAuthToSessionStorage = async () => {
       return null;
     }
     saveAuthToSession(me);
+
+    /* ★ users:v1에도 결제여부 반영 */
+    if (me.paid) upsertUserPaid({ email: me.email, id: me.id }, true);
+
     const displayName = me.email || me.nickname || `U-${me.id}`;
     window.__ME_NAME__ = displayName;
     window.__PROVIDER__ = me.provider || "local";
@@ -393,6 +428,16 @@ const onKeydownAC = (e) => {
   }
 };
 
+/* ★ 추가: 현재 하이라이트 항목 확정 함수 (sendMessage에서 사용) */
+AC.acceptCurrent = () => {
+  if (!AC.visible) return false;
+  const key = AC.items[AC.index] || AC.lastKeys[0];
+  if (!key) return false;
+  applyCompletion(key);
+  hidePanel();
+  return true;
+};
+
 const initAutocompleteClassic = () => {
   buildClassicPanel();
   const input = document.getElementById("message-input");
@@ -419,7 +464,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ★ socket.io: 원격 소켓 URL이 있으면 그쪽으로, 없으면 같은 오리진
   try {
     const opts = { withCredentials: true };
-    // 필요시 강제 웹소켓만: opts.transports = ['websocket'];
+    // 필요한 경우만 활성화: opts.transports = ['websocket'];
     socket = window.SOCKET_URL ? io(window.SOCKET_URL, opts) : io(opts);
 
     updateConnectionStatus("connecting");
