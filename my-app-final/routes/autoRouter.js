@@ -5,14 +5,13 @@ const fs = require("fs");
 const path = require("path");
 
 const router = express.Router();
-
-// API JSON 파일 (원하면 경로 바꿔도 됨)
 const API_JSON_PATH = path.resolve(__dirname, "../public/data/WebSquareAPI.json");
-// 워커 파일
 const WORKER_PATH = path.resolve(__dirname, "../public/worker/autoWorker.js");
 
-router.get("/ping", (req, res) => res.json({ ok: true }));
-
+/**
+ * WebSquareAPI.json 에 있는 정보를 파싱하여 자동완성 처리합니다.
+ * 해당 작업은 worker 쓰레드에서 작업을 진행합니다.
+ */
 router.post("/suggest", (req, res) => {
   const key = (req.body && req.body.key) || "";
 

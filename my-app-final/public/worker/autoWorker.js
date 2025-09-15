@@ -1,6 +1,18 @@
-// public/worker/autoWorker.js
 const { parentPort } = require("worker_threads");
 
+/**
+ * $p 관련 자동완성을 해 주는 기능입니다.
+ * 해당 기능은 자식 worker 쓰레드 에서 동작합니다.
+ * 동작 순서는 아래와 같습니다.
+ * 1. 안전 처리 & 전처리
+ * 2. 토큰화 & 탐색
+ * 3. 상황 판정 
+ * 4. 출력 구성 
+ * 5. 워커 통신
+ * @param {*} apiJson 
+ * @param {*} inputText 
+ * @returns 
+ */
 const buildAutoComplete = (apiJson, inputText) => {
   const src = typeof apiJson === "string" ? JSON.parse(apiJson) : apiJson;
   const text = String(inputText || "").trim();
@@ -22,7 +34,7 @@ const buildAutoComplete = (apiJson, inputText) => {
       node = node[key];
     } else {
       parent = parent ?? P;
-      node = null; // 여기서부터 prefix 검색
+      node = null;
       break;
     }
   }

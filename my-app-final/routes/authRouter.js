@@ -2,12 +2,11 @@ const express = require("express");
 const router = express.Router();
 
 /**
- * [GET] /auth/signup
- * - 회원가입 페이지 렌더
+ * 회원 가입페이지를 렌더링 합니다.
  */
 router.get("/signup", (req, res) => {
   try {
-    return res.render("signup"); // views/signup.ejs
+    return res.render("signup");
   } catch (e) {
     console.error("[/auth/signup GET] error:", e);
     return res.status(500).send("Signup page error");
@@ -15,17 +14,15 @@ router.get("/signup", (req, res) => {
 });
 
 /**
- * [POST] /auth/local-login
- * - 일반 + admin/admin 바이패스
- * - 세션을 regenerate → 값 세팅 → save 후 응답 (세션 저장 보장)
- * - 미결제면 payMeta도 심어서 /pay 바로 진입 가능
+ * 일반 로그인 시 처리되는 로직입니다
+ * 결제했는지 안했는지처리 단계에 따라 결제를 진행할지, 채팅창으로 갈지 처리합니다.
+ * admin의 경우는 by-pass 처리됩니다.
  */
 router.post("/local-login", (req, res) => {
   const { id, email, paid, pw } = req.body || {};
   const respond = () => {
     const needPay = !req.session.paid;
 
-    // ★ 결제 필요하면 payMeta 심어둠 (payRouter.ensurePayFlow용)
     if (needPay) {
       req.session.payMeta = {
         from: "auth",
@@ -46,13 +43,11 @@ router.post("/local-login", (req, res) => {
 
   const setUserSession = () => {
     if (id === "admin" && pw === "admin") {
-      // 관리자 바이패스
       req.session.user = { id: "admin", email: "admin", isAdmin: true };
-      req.session.paid = true; // 결제 가드 우회
+      req.session.paid = true;
       return respond();
     }
 
-    // 일반 사용자
     const userId = id || email || "user";
     const userEmail = email || null;
     req.session.user = { id: userId, email: userEmail || undefined, isAdmin: false };
