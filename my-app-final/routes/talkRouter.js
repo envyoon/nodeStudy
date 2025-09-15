@@ -5,7 +5,7 @@ const router = express.Router();
 
 const {
   KAKAO_REST_API_KEY,
-  KAKAO_REDIRECT_URI = "http://localhost:3000/talk",
+  KAKAO_REDIRECT_URI,
   KAKAO_CLIENT_SECRET,
   SOCKET_URL, // ★ 추가: 클라에 내려줄 소켓 서버 URL
 } = process.env;
