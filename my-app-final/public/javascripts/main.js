@@ -1,6 +1,7 @@
 // 전역 설정
 const KAKAO_JS_KEY = "74624c9eef1b4a521aa9a2f6c111d9a6";
-const TALK_URL = "/talk";
+// const TALK_URL = "/talk";
+const TALK_URL = "/auth";
 const STORAGE_USERS = "users:v1";
 
 /*********************************************************************************

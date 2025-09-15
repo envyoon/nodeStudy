@@ -15,7 +15,7 @@ function ensureAuthed(req, res, next) {
 
 /** 결제 플로우 토큰(payMeta) 필수 + 이미 결제면 /talk */
 function ensurePayFlow(req, res, next) {
-  if (req.session?.paid) return res.redirect("/talk");
+  if (req.session?.paid) return res.redirect("/auth");
   const meta = req.session?.payMeta;
   const TTL_MS = 5 * 60 * 1000; // 5분
   const now = Date.now();
@@ -133,7 +133,6 @@ router.post("/kcp/pay", ensureAuthed, ensurePayFlow, async (req, res) => {
     // 금액/주문번호 서버 검증
     const meta = req.session.payMeta || {};
     const expectedAmount = String(meta.amount ?? DEFAULT_AMOUNT);
-    // const orderId = meta.ordr_idxx; // 필요 시 사용
 
     if (String(good_mny || "") !== expectedAmount) {
       return res.status(400).render("pay_result", {

@@ -164,7 +164,7 @@ const sendMessage = () => {
 /* ------------ 서버-세션 → 세션스토리지 ------------ */
 const syncAuthToSessionStorage = async () => {
   try {
-    const me = await httpGetJSON("/talk/me");
+    const me = await httpGetJSON("/auth/me");
     if (!me) {
       saveAuthToSession(null);
       return null;
@@ -180,7 +180,7 @@ const syncAuthToSessionStorage = async () => {
     setMeUI(displayName);
     return me;
   } catch (e) {
-    console.warn("[/talk/me] failed:", e);
+    console.warn("[/auth/me] failed:", e);
     return null;
   }
 };
@@ -197,7 +197,7 @@ const handleLogout = async () => {
     }
   }
   try {
-    await httpPost("/talk/logout");
+    await httpPost("/auth/logout");
   } catch {}
   try {
     sessionStorage.removeItem(AUTH_USER_KEY);
