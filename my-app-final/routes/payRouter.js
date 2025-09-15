@@ -97,7 +97,6 @@ router.get("/leave", async (req, res) => {
   // 결제 플로우 흔적 제거
   delete req.session?.payMeta;
 
-  // (선택) 카카오로 로그인한 세션이면 카카오 서버에도 로그아웃 호출
   try {
     const kakaoAccess = req.session?.kakao?.access_token;
     if (kakaoAccess) {

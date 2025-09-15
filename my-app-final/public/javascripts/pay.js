@@ -20,7 +20,7 @@ const m_Completepayment = (FormOrJson, closeEvent) => {
     if (typeof closeEvent === "function") closeEvent();
   }
 };
-window.m_Completepayment = m_Completepayment; // 전역 등록 (KCP가 이 이름을 콜백으로 호출)
+window.m_Completepayment = m_Completepayment; 
 
 // 결제창 오픈 헬퍼
 const jsf__pay = (form) => {

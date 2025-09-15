@@ -1,28 +1,49 @@
-/* ==============================
- * talk.js — socket + $p. 자동완성(클래식)
- * ============================== */
+/* =================================================================================
+ * talk.js — 채팅(소켓) + 세션 동기화 + $p. 자동완성(클래식)
+ * ================================================================================= */
+
+/*********************************************************************************
+ * ============================ [START] 전역 상수 / 설정 ============================
+ *********************************************************************************/
+
 const AUTH_USER_KEY = "auth:user:v1";
 /* users:v1 저장소(메인 화면에서 쓰는 로컬 계정 리스트) */
 const STORAGE_USERS = "users:v1";
 
-/* ------------ 공용 유틸 ------------ */
-const nowHHMM = () => {
-  const d = new Date();
-  const p = (n) => String(n).padStart(2, "0");
-  return `${p(d.getHours())}:${p(d.getMinutes())}`;
-};
+/* axios 존재/설정 */
 if (!window.axios) throw new Error("axios not loaded");
 window.axios.defaults.withCredentials = true;
+
+/* 공통 HTTP 유틸 */
 const httpPost = (url, bodyJSON) => window.axios.post(url, bodyJSON);
 const httpGetJSON = async (url) => {
   const res = await window.axios.get(url);
   if (res.status === 204) return null;
   return res.data;
 };
+
+/*********************************************************************************
+ * ============================= [END] 전역 상수 / 설정 =============================
+ *********************************************************************************/
+
+/*********************************************************************************
+ * ================================= [START] 공용 유틸 ==============================
+ *********************************************************************************/
+
+/** HH:mm 시각 문자열 */
+const nowHHMM = () => {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, "0");
+  return `${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
+/** 상단 내 이름 표시 */
 const setMeUI = (name) => {
   const meSpan = document.getElementById("me-name");
   if (meSpan) meSpan.textContent = name || "";
 };
+
+/** 세션스토리지에 로그인 메타 저장 */
 const saveAuthToSession = (auth) => {
   if (!auth) return sessionStorage.removeItem(AUTH_USER_KEY);
   sessionStorage.setItem(
@@ -41,7 +62,7 @@ const saveAuthToSession = (auth) => {
   } catch {}
 };
 
-/* ★ 결제 동기화: 서버가 paid:true면 users:v1에도 반영 */
+/** ★ 결제 동기화: 서버가 paid:true면 users:v1에도 반영 */
 const upsertUserPaid = ({ email, id }, paid = true) => {
   try {
     const list = JSON.parse(sessionStorage.getItem(STORAGE_USERS) || "[]");
@@ -68,7 +89,14 @@ const upsertUserPaid = ({ email, id }, paid = true) => {
   } catch {}
 };
 
-/* ------------ 연결 상태/프레즌스 ------------ */
+/*********************************************************************************
+ * ================================ [END] 공용 유틸 =================================
+ *********************************************************************************/
+
+/*********************************************************************************
+ * ======================= [START] 연결 상태 / 프레즌스 UI ==========================
+ *********************************************************************************/
+
 const updateConnectionStatus = (state) => {
   const badge = document.getElementById("conn-status");
   if (!badge) return;
@@ -83,12 +111,21 @@ const updateConnectionStatus = (state) => {
     badge.className = "badge badge--warn";
   }
 };
+
 const updatePresence = (n) => {
   const el = document.getElementById("online-count");
   if (el) el.textContent = `온라인 ${n}`;
 };
 
-/* ------------ 메시지 UI ------------ */
+/*********************************************************************************
+ * ======================== [END] 연결 상태 / 프레즌스 UI ===========================
+ *********************************************************************************/
+
+/*********************************************************************************
+ * ========================= [START] 메시지 UI / 전송 로직 ==========================
+ *********************************************************************************/
+
+/** 메시지 리스트에 하나 추가 */
 const appendMessage = ({ text, me = false, who = "?", time = nowHHMM() }) => {
   const list = document.getElementById("messages");
   if (!list) return;
@@ -119,17 +156,19 @@ const appendMessage = ({ text, me = false, who = "?", time = nowHHMM() }) => {
   list.scrollTop = list.scrollHeight;
 };
 
-/* ------------ 소켓 ------------ */
-let socket = null;
-let typingTimer = null;
-const emitTyping = (on) => socket && socket.emit("chat:typing", !!on);
-
-/* ------------ 입력 UX / 전송 ------------ */
+/** 입력창 자동 높이 */
 const autosize = (ta) => {
   if (!ta) return;
   ta.style.height = "auto";
   ta.style.height = Math.min(160, ta.scrollHeight) + "px";
 };
+
+/** 소켓 타이핑 알림 */
+let socket = null;
+let typingTimer = null;
+const emitTyping = (on) => socket && socket.emit("chat:typing", !!on);
+
+/** 입력 이벤트(사이즈/타이핑) */
 const onInput = () => {
   const input = document.getElementById("message-input");
   autosize(input);
@@ -139,6 +178,8 @@ const onInput = () => {
   if (typingTimer) clearTimeout(typingTimer);
   typingTimer = setTimeout(() => emitTyping(false), 700);
 };
+
+/** 전송 버튼/Enter 전송 */
 const sendMessage = () => {
   const input = document.getElementById("message-input");
   if (!input) return;
@@ -161,7 +202,14 @@ const sendMessage = () => {
   autosize(input);
 };
 
-/* ------------ 서버-세션 → 세션스토리지 ------------ */
+/*********************************************************************************
+ * ========================== [END] 메시지 UI / 전송 로직 ===========================
+ *********************************************************************************/
+
+/*********************************************************************************
+ * ===================== [START] 서버 세션 → 세션스토리지 동기화 ====================
+ *********************************************************************************/
+
 const syncAuthToSessionStorage = async () => {
   try {
     const me = await httpGetJSON("/auth/me");
@@ -171,7 +219,6 @@ const syncAuthToSessionStorage = async () => {
     }
     saveAuthToSession(me);
 
-    /* ★ users:v1에도 결제여부 반영 */
     if (me.paid) upsertUserPaid({ email: me.email, id: me.id }, true);
 
     const displayName = me.email || me.nickname || `U-${me.id}`;
@@ -185,7 +232,18 @@ const syncAuthToSessionStorage = async () => {
   }
 };
 
-/* ------------ 로그아웃 ------------ */
+/*********************************************************************************
+ * ====================== [END] 서버 세션 → 세션스토리지 동기화 =====================
+ *********************************************************************************/
+
+/*********************************************************************************
+ * =============================== [START] 로그아웃 ================================
+ *********************************************************************************/
+
+/**
+ * 로그아웃 로직입니다.
+ * 해당 버튼을 클릭하면 로그인 세션을 제거합니다.
+ */
 const handleLogout = async () => {
   const provider = window.__PROVIDER__ || document.getElementById("chat-app")?.dataset.provider || "local";
   if (provider === "kakao" && window.Kakao) {
@@ -205,9 +263,15 @@ const handleLogout = async () => {
   window.location.replace("/main");
 };
 
-/* ==================================================================
- *                 ⬇⬇⬇  $p. 자동완성 (클래식)  ⬇⬇⬇
- * ================================================================== */
+/*********************************************************************************
+ * ================================ [END] 로그아웃 =================================
+ *********************************************************************************/
+
+/*********************************************************************************
+ * ===================== [START] $p. 자동완성(클래식) 모듈 ==========================
+ *********************************************************************************/
+
+/* 모듈 상태 */
 let AC = {
   panel: null,
   items: [],
@@ -217,6 +281,7 @@ let AC = {
   lastKeys: [],
 };
 
+/** 패널 DOM 생성 */
 const buildClassicPanel = () => {
   if (AC.panel) return;
 
@@ -246,6 +311,7 @@ const buildClassicPanel = () => {
   AC.panel = panel;
 };
 
+/** 패널 숨김 */
 const hidePanel = () => {
   if (!AC.panel) return;
   AC.panel.style.display = "none";
@@ -257,7 +323,10 @@ const hidePanel = () => {
   AC.lastKeys = [];
 };
 
+/** 안전한 마크업 */
 const escapeHtml = (s = "") => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/** 라이트한 마크다운 렌더 */
 const renderMarkdownLite = (md = "") => {
   let safe = escapeHtml(md);
   safe = safe.replace(/```(\w+)?\n([\s\S]*?)```/g, (m, lang, code) => `<pre><code class="lang-${lang || ""}">${escapeHtml(code)}</code></pre>`);
@@ -267,6 +336,7 @@ const renderMarkdownLite = (md = "") => {
   return safe;
 };
 
+/** 리스트 하이라이트 */
 const highlight = (idx) => {
   const nodes = AC.panel?.querySelectorAll(".ac-item");
   if (!nodes) return;
@@ -274,6 +344,7 @@ const highlight = (idx) => {
   AC.index = idx;
 };
 
+/** 현재 줄의 $p 세그먼트 추출 */
 const getSegmentContext = () => {
   const ta = document.getElementById("message-input");
   if (!ta) return null;
@@ -288,11 +359,13 @@ const getSegmentContext = () => {
   return { segment, absStart, caret: pos, ta };
 };
 
+/** 타입이 함수형인지 */
 const isFnType = (meta) => {
   const t = String(meta?.["!type"] || "");
   return /^fn\s*\(/i.test(t) || t.startsWith("fn(");
 };
 
+/** 자동완성 항목 적용 */
 const applyCompletion = (word) => {
   const ctx = getSegmentContext();
   if (!ctx) return hidePanel();
@@ -326,6 +399,7 @@ const applyCompletion = (word) => {
   autosize(ta);
 };
 
+/** 패널 렌더 */
 const renderPanel = (resultObj) => {
   if (!AC.panel) return;
   const keys = Object.keys(resultObj || {}).filter((k) => k !== "!type" && k !== "!doc");
@@ -379,6 +453,7 @@ const renderPanel = (resultObj) => {
   AC.visible = true;
 };
 
+/** 자동완성 쿼리 */
 let acDebounce = 0;
 const queryAutocomplete = async () => {
   const ctx = getSegmentContext();
@@ -396,11 +471,13 @@ const debounceQuery = () => {
   acDebounce = setTimeout(queryAutocomplete, 200);
 };
 
+/** 입력 연동(자동완성) */
 const onInputAC = () => {
   onInput(); // 사이즈/타이핑
   debounceQuery(); // 자동완성 질의
 };
 
+/** 키다운(자동완성) */
 const onKeydownAC = (e) => {
   if (!AC.visible) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -428,7 +505,7 @@ const onKeydownAC = (e) => {
   }
 };
 
-/* ★ 추가: 현재 하이라이트 항목 확정 함수 (sendMessage에서 사용) */
+/** 현재 하이라이트 항목 확정(Enter/toggle) */
 AC.acceptCurrent = () => {
   if (!AC.visible) return false;
   const key = AC.items[AC.index] || AC.lastKeys[0];
@@ -438,6 +515,7 @@ AC.acceptCurrent = () => {
   return true;
 };
 
+/** 초기 바인딩 */
 const initAutocompleteClassic = () => {
   buildClassicPanel();
   const input = document.getElementById("message-input");
@@ -445,9 +523,15 @@ const initAutocompleteClassic = () => {
   input.addEventListener("input", onInputAC);
   input.addEventListener("keydown", onKeydownAC);
 };
-/* ============================== 자동완성 끝 ============================== */
 
-/* ------------ 초기화 ------------ */
+/*********************************************************************************
+ * ====================== [END] $p. 자동완성(클래식) 모듈 ===========================
+ *********************************************************************************/
+
+/*********************************************************************************
+ * ============================ [START] 초기화 / 바인딩 ============================
+ *********************************************************************************/
+
 document.addEventListener("DOMContentLoaded", async () => {
   const root = document.getElementById("chat-app");
   const ssrMe = root?.dataset.me || null;
@@ -461,10 +545,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   await syncAuthToSessionStorage();
 
-  // ★ socket.io: 원격 소켓 URL이 있으면 그쪽으로, 없으면 같은 오리진
   try {
     const opts = { withCredentials: true };
-    // 필요한 경우만 활성화: opts.transports = ['websocket'];
     socket = window.SOCKET_URL ? io(window.SOCKET_URL, opts) : io(opts);
 
     updateConnectionStatus("connecting");
@@ -505,9 +587,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   appendMessage({ text: "채팅에 오신 걸 환영합니다!", who: "System" });
 });
 
-// 디버그
-window.ChatUI = {
-  updateConnectionStatus,
-  appendMessage,
-  syncAuthToSessionStorage,
-};
+/*********************************************************************************
+ * ============================= [END] 초기화 / 바인딩 =============================
+ *********************************************************************************/
