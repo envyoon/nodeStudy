@@ -50,9 +50,6 @@ const handleCreate = () => {
   users.push({ id, email, pw, paid: false, createdAt: new Date().toISOString() });
   saveUsers(users);
 
-  // 마지막 로그인 자동 채움용
-  sessionStorage.setItem(LAST_EMAIL_KEY, email);
-
   // 메인으로 복귀
   window.location.href = RETURN_URL;
 };

@@ -4,7 +4,14 @@ const TALK_URL = "/talk";
 const STORAGE_USERS = "users:v1";
 const LAST_EMAIL_KEY = "contents:lastEmail";
 
-// ── 유틸
+/*********************************************************************************
+ * ================================= 유틸 함수 ====================================
+ *********************************************************************************/
+
+/**
+ * 결제가 되었는지 되지 않았는지 SessionStorage 에서 가져오는 유틸입니다.
+ * @returns
+ */
 const getPaidEmails = () => {
   try {
     const list = JSON.parse(sessionStorage.getItem(STORAGE_USERS) || "[]");
@@ -13,18 +20,36 @@ const getPaidEmails = () => {
     return [];
   }
 };
+
+/**
+ * 로그인에 실패 하였을 때 왜 실패 하였는지 보여주는 유틸입니다.
+ * @param {*} msg
+ * @returns
+ */
 const showError = (msg = "") => {
   const el = document.getElementById("login-error");
   if (!el) return;
   el.textContent = msg;
   el.style.display = msg ? "block" : "none";
 };
+
+/**
+ * 로그인 버튼을 눌렀을 때 로그인/ 로그인 중... 으로 보여지게 하는 유틸입니다.
+ * @param {*} on
+ * @returns
+ */
 const setLoading = (on) => {
   const btn = document.getElementById("btn-login");
   if (!btn) return;
   btn.disabled = !!on;
   btn.textContent = on ? "로그인 중…" : "로그인";
 };
+
+/**
+ * SessionStorage 에서 로그인 정보를 가져옵니다.
+ * (users:v1 / DB 구성을 하지 않아서 SessionSorage에서 가져옴.)
+ * @returns
+ */
 const loadUsers = () => {
   try {
     const raw = sessionStorage.getItem(STORAGE_USERS);
@@ -33,23 +58,41 @@ const loadUsers = () => {
     return [];
   }
 };
-const normalize = (s) =>
-  String(s ?? "")
-    .trim()
-    .toLowerCase();
+
+/**
+ * 로그인 시 id/pw 검증을 해 주는 유틸입니다.
+ * @param {*} s
+ * @returns
+ */
 const findUser = (idOrEmail, pw) => {
+  const normalize = (s) =>
+    String(s ?? "")
+      .trim()
+      .toLowerCase();
   const needle = normalize(idOrEmail);
-  return (
-    loadUsers().find(
-      (u) =>
-        u?.pw && // 로컬 가입자만
-        (normalize(u.id) === needle || normalize(u.email) === needle) &&
-        u.pw === pw
-    ) || null
-  );
+
+  return loadUsers().find((u) => u?.pw && (normalize(u.id) === needle || normalize(u.email) === needle) && u.pw === pw) || null;
 };
 
-// ── 일반 로그인(세션스토리지 검증 + 서버세션 세팅)
+/**
+ * 엔터키를 누르면 '로그인 버튼' 을 클릭하게 하는 함수입니다.
+ * @param {*} e
+ */
+const handleEnterKey = (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    handleLocalLogin();
+  }
+};
+
+/*********************************************************************************
+ * ============================= 로그인 관련 함수 =================================
+ *********************************************************************************/
+
+/**
+ * 일반 로그인 시 검증하는 로직 입니다.
+ * @returns
+ */
 const handleLocalLogin = async () => {
   showError("");
   const id = (document.getElementById("login-id")?.value || "").trim();
@@ -58,10 +101,10 @@ const handleLocalLogin = async () => {
   if (!id) return showError("아이디를 입력하세요.");
   if (!pw) return showError("비밀번호를 입력하세요.");
 
-  // ★ 관리자 바이패스 허용
+  // 관리자 바이패스
   const isAdminBypass = id === "admin" && pw === "admin";
 
-  // 일반 유저 검증 (sessionStorage 기반) — 관리자면 건너뜀
+  // 세션 스토리지에 일치하지 않는 정보가 있으면 리턴처리 해 줍니다.
   let user = null;
   if (!isAdminBypass) {
     user = findUser(id, pw);
@@ -69,24 +112,14 @@ const handleLocalLogin = async () => {
   }
 
   setLoading(true);
-  try {
-    // 서버로 로그인 요청
-    // - 관리자: pw도 함께 보냄 → 서버가 admin/admin 확인
-    // - 일반: 기존과 동일
-    const res = await window.axios.post(
-      "/auth/local-login",
-      isAdminBypass
-        ? { id, email: "admin", paid: true, pw } // 관리자 바이패스: paid=true로 바로 /talk
-        : { id, email: user.email || id, paid: !!user.paid, pw: "" } // pw는 사용 안하지만 필드 통일
-    );
 
+  // 서버로 로그인 요청을 보냅니다. (이때, 관리자는 결제를 하지 않아도 통과합니다.)
+  try {
+    const res = await axios.post("/auth/local-login", isAdminBypass ? { id, email: "admin", paid: true, pw } : { id, email: user.email || id, paid: !!user.paid, pw: "" });
     const data = res.data || {};
 
-    // 최근 로그인 이메일 저장(관리자도 형태 맞춰 저장)
-    sessionStorage.setItem(LAST_EMAIL_KEY, isAdminBypass ? "admin" : user.email || id);
-
-    // 서버가 내려준 redirect 로 이동(알림창 없음)
-    window.location.href = data.redirect || (data.requiresPayment ? "/pay" : "/talk");
+    // paid 값 체크 후 리다이렉트 페이지를 정해줍니다.
+    location.href = data.redirect || (data.requiresPayment ? "/pay" : "/talk");
   } catch (e) {
     console.error("[local login]", e);
     showError("로그인 처리 중 오류가 발생했습니다.");
@@ -95,35 +128,44 @@ const handleLocalLogin = async () => {
   }
 };
 
-// ── 카카오 로그인
+/**
+ * 카카오 API로 로그인 할 때 처리하는 로직입니다.
+ * @returns
+ */
 const handleKakaoLogin = () => {
-  const origin = window.location.origin;
-  if (!window.Kakao || !KAKAO_JS_KEY) return alert("Kakao SDK 또는 JS 키가 없습니다.");
+  //기본 경로
+  const origin = location.origin;
+  if (!Kakao || !KAKAO_JS_KEY) return alert("Kakao SDK 또는 JS 키가 없습니다.");
   if (!Kakao.isInitialized()) Kakao.init(KAKAO_JS_KEY);
 
-  // users:v1에서 결제된 이메일들만 추출 → state로 전달
+  // users:v1에서 결제된 이메일들만 추출하여 state로 전달합니다.
   const statePayload = { v: 1, paidEmails: getPaidEmails() };
-  const state = btoa(JSON.stringify(statePayload)); // ASCII만 있으니 btoa로 충분
+  const state = btoa(JSON.stringify(statePayload));
 
   Kakao.Auth.authorize({
-    redirectUri: `${origin}${TALK_URL}`, // 콜백을 /talk 로
+    redirectUri: `${origin}${TALK_URL}`,
     prompt: "login",
     state,
   });
 };
 
-// ── 엔터 제출
-const handleEnterKey = (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    handleLocalLogin();
-  }
-};
+/*********************************************************************************
+ * ============================= 이벤트 리스너 관련 ===============================
+ *********************************************************************************/
 
-// ── 바인딩
+/**
+ * 이벤트 리스너를 등록/삭제하는 부분입니다.
+ */
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("login-id")?.addEventListener("keydown", handleEnterKey);
   document.getElementById("login-pw")?.addEventListener("keydown", handleEnterKey);
   document.getElementById("btn-login")?.addEventListener("click", handleLocalLogin);
   document.getElementById("btn-kakao-login")?.addEventListener("click", handleKakaoLogin);
+
+  window.addEventListener("beforeunload", () => {
+    document.getElementById("login-id")?.removeEventListener("keydown", handleEnterKey);
+    document.getElementById("login-pw")?.removeEventListener("keydown", handleEnterKey);
+    document.getElementById("btn-login")?.removeEventListener("click", handleLocalLogin);
+    document.getElementById("btn-kakao-login")?.removeEventListener("click", handleKakaoLogin);
+  });
 });

@@ -35,7 +35,6 @@ const saveAuthToSession = (auth) => {
       ts: Date.now(),
     })
   );
-  if (auth.email) sessionStorage.setItem(LAST_EMAIL_KEY, auth.email);
 };
 
 /* ------------ 연결 상태/프레즌스 ------------ */

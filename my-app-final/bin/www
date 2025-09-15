@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 var appPack = require("../app");
 var app = appPack.app;
 var sessionMiddleware = appPack.sessionMiddleware;
@@ -13,15 +12,14 @@ function normalizePort(val) {
 }
 
 var port = normalizePort(process.env.PORT || "3000");
-var host = process.env.HOST || "0.0.0.0"; // ★ 외부에서 붙게
+var host = process.env.HOST || "0.0.0.0";
 app.set("port", port);
 
 var server = http.createServer(app);
 
-// ★ socket.io 부트스트랩
 require("../socket")(server, { sessionMiddleware });
 
-server.listen(port, host); // ★ host 지정
+server.listen(port, host);
 server.on("error", onError);
 server.on("listening", onListening);
 
