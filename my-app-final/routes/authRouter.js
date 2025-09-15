@@ -1,12 +1,8 @@
 const express = require("express");
-const axios = require('axios');
+const axios = require("axios");
 const router = express.Router();
 
-const {
-  KAKAO_REST_API_KEY,
-  KAKAO_REDIRECT_URI,
-  SOCKET_URL,
-} = process.env;
+const { KAKAO_REST_API_KEY, KAKAO_REDIRECT_URI, SOCKET_URL } = process.env;
 
 /**
  * 회원 가입페이지를 렌더링 합니다.
@@ -71,27 +67,8 @@ router.post("/local-login", (req, res) => {
   });
 });
 
-/** 공통: 세션에서 표시용 meName/provider 뽑기 */
-function pickMe(req) {
-  // 일반 로그인
-  if (req.session?.user) {
-    const { email, id } = req.session.user;
-    return { provider: "local", meName: email || id || "User" };
-  }
-  // 카카오 로그인
-  const kakao = req.session?.kakao?.user;
-  if (kakao) {
-    const acc = kakao.kakao_account || {};
-    const nickname = acc.profile?.nickname;
-    return { provider: "kakao", meName: acc.email || nickname || `K-${kakao.id}` };
-  }
-  return { provider: null, meName: null };
-}
-
 /**
- * GET /auth
- * - code 있으면: 카카오 콜백 → 토큰교환 → 세션저장 → /talk 로 정리 리다이렉트
- * - code 없으면: 보호 라우팅(로그인 없으면 /main), 있으면 talk.ejs 렌더
+ * 카카오 로그인 시 동작하는 함수입니다.
  */
 router.get("/", async (req, res, next) => {
   try {
@@ -102,7 +79,6 @@ router.get("/", async (req, res, next) => {
       return res.status(400).send("카카오 인증 오류: " + (error_description || error));
     }
 
-    // 1) 카카오 콜백 (인가코드 수신) → 토큰 교환
     if (code) {
       try {
         const params = new URLSearchParams({
@@ -112,11 +88,7 @@ router.get("/", async (req, res, next) => {
           code,
         });
 
-        const tokenRes = await axios.post(
-          "https://kauth.kakao.com/oauth/token",
-          params.toString(),
-          { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
-        );
+        const tokenRes = await axios.post("https://kauth.kakao.com/oauth/token", params.toString(), { headers: { "Content-Type": "application/x-www-form-urlencoded" } });
 
         const { access_token, refresh_token } = tokenRes.data;
 
@@ -138,11 +110,7 @@ router.get("/", async (req, res, next) => {
               req.session.paid = true;
             }
           }
-        } catch (_) {
-          // state 파싱 실패는 무시
-        }
-
-        // 쿼리 정리 위해 자가 리다이렉트
+        } catch (_) {}
         return res.redirect(303, "/auth");
       } catch (err) {
         const status = err.response?.status;
@@ -152,23 +120,20 @@ router.get("/", async (req, res, next) => {
       }
     }
 
-    // 2) 보호 라우팅: 로그인 없으면 /main
     const hasLocal = !!req.session?.user;
     const hasKakao = !!req.session?.kakao;
     if (!hasLocal && !hasKakao) return res.redirect("/main");
 
-    // 2.5) 결제 가드: 미결제면 /pay
     if (!req.session.paid) {
       req.session.payMeta = { from: "talk", reason: "need_payment", next: "/auth" };
       return res.redirect("/pay");
     }
 
-    // 3) 뷰 렌더 + ★ 소켓 URL 주입
     const { provider, meName } = pickMe(req);
     return res.render("talk", {
       provider,
       meName,
-      socketUrl: SOCKET_URL || "", // 없으면 같은 오리진으로 붙음
+      socketUrl: SOCKET_URL,
     });
   } catch (err) {
     console.error("[talk error]", err?.response?.data || err);
@@ -176,7 +141,9 @@ router.get("/", async (req, res, next) => {
   }
 });
 
-/** GET /auth/me : 프런트에서 로그인 상태/프로필 확인용 */
+/**
+ * 어떤 계정으로 로그인 하였는지 세션을 확인하는 함수입니다.
+ */
 router.get("/me", (req, res) => {
   const local = req.session?.user;
   const kakao = req.session?.kakao?.user;
@@ -198,7 +165,11 @@ router.get("/me", (req, res) => {
   return res.status(204).send(); // 미로그인
 });
 
-/** POST /auth/logout : 서버 세션 파괴 */
+/**
+ * 로그아웃 시 동작하는 로직입니다.
+ * 카카오 세션이 있으면 삭제 해 주고,
+ * 일반 세션도 삭제 해 줍니다.
+ */
 router.post("/logout", async (req, res) => {
   try {
     const kakaoAccess = req.session?.kakao?.access_token;
@@ -231,5 +202,26 @@ router.post("/logout", async (req, res) => {
     res.status(500).json({ ok: false, message: "로그아웃 중 오류" });
   }
 });
+
+/**
+ * 세션에 표기하기 위한 값을 추출하는 함수입니다.
+ * @param {*} req
+ * @returns
+ */
+const pickMe = (req) => {
+  // 일반 로그인
+  if (req.session?.user) {
+    const { email, id } = req.session.user;
+    return { provider: "local", meName: email || id || "User" };
+  }
+  // 카카오 로그인
+  const kakao = req.session?.kakao?.user;
+  if (kakao) {
+    const acc = kakao.kakao_account || {};
+    const nickname = acc.profile?.nickname;
+    return { provider: "kakao", meName: acc.email || nickname || `K-${kakao.id}` };
+  }
+  return { provider: null, meName: null };
+};
 
 module.exports = router;
