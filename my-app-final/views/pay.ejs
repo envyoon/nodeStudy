@@ -37,6 +37,7 @@
           <input type="hidden" name="enc_info" value="" />
           <input type="hidden" name="enc_data" value="" />
           <input type="hidden" name="tran_cd" value="" />
+          <input type="hidden" name="use_pay_method" value="" />
 
           <!-- 주문/상품/금액/구매자 -->
           <input type="hidden" name="ordr_idxx" value="<%= order.id %>" />
@@ -45,6 +46,7 @@
           <input type="hidden" name="buyr_name" value="<%= buyer.name %>" />
           <input type="hidden" name="buyr_tel2" value="<%= buyer.tel %>" />
           <input type="hidden" name="buyr_mail" value="<%= buyer.email %>" />
+          
         </form>
 
         <div class="row-center" style="margin-top: 16px">

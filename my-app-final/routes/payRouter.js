@@ -36,17 +36,13 @@ const isProd = process.env.KCP_ENV === "prod";
 const KCP_JS_URL = isProd ? "https://spay.kcp.co.kr/plugin/kcp_spay_hub.js" : "https://testspay.kcp.co.kr/plugin/kcp_spay_hub.js";
 const KCP_PAYMENT_API = isProd ? "https://spl.kcp.co.kr/gw/enc/v1/payment" : "https://stg-spl.kcp.co.kr/gw/enc/v1/payment";
 const KCP_SITE_CD = process.env.KCP_SITE_CD || "T0000";
-// 인증서: 문자열(.env KCP_CERT_INFO) 또는 파일 경로(.env KCP_CERT_INFO_FILE) 모두 지원
 const KCP_CERT_INFO = (() => {
   const p = process.env.KCP_CERT_INFO_FILE;
-  if (p) {
-    try {
-      return fs.readFileSync(path.resolve(p), "utf8");
-    } catch (e) {
-      console.warn("[KCP] CERT file read failed:", e?.message || e);
-    }
+  try {
+    return fs.readFileSync(path.resolve(p), "utf8");
+  } catch (e) {
+    console.warn("[KCP] CERT file read failed:", e?.message || e);
   }
-  return process.env.KCP_CERT_INFO || "";
 })();
 
 /** 주문번호(서버 생성) */
@@ -121,7 +117,7 @@ router.get("/leave", async (req, res) => {
 /** POST /pay/kcp/pay : 결제 승인 API */
 router.post("/kcp/pay", ensureAuthed, ensurePayFlow, async (req, res) => {
   try {
-    const { tran_cd, enc_info, enc_data, good_mny } = req.body || {};
+    const { tran_cd, enc_info, enc_data, good_mny, use_pay_method } = req.body || {};
 
     // 기본 필드 체크
     if (!tran_cd || !enc_info || !enc_data) {
@@ -140,7 +136,27 @@ router.post("/kcp/pay", ensureAuthed, ensurePayFlow, async (req, res) => {
       });
     }
 
-    // (권장) 결제수단 검증: 기본 카드 결제 PACA
+    // 결제 타입 확인
+    const maskToPayType = (mask = "") => {
+      switch (String(mask).trim()) {
+        case "100000000000":
+          return "PACA"; // 신용카드
+        case "010000000000":
+          return "PABK"; // 계좌이체
+        case "001000000000":
+          return "PAVC"; // 가상계좌
+        case "000010000000":
+          return "PAMC"; // 휴대폰
+        default:
+          if (/^PA[A-Z]{2}$/i.test(mask)) return mask.toUpperCase();
+          return undefined;
+      }
+    };
+
+    const pay_type = maskToPayType(use_pay_method);
+
+    console.log("pay_type >>> ", pay_type);
+
     const reqData = {
       tran_cd,
       site_cd: KCP_SITE_CD,
@@ -148,8 +164,7 @@ router.post("/kcp/pay", ensureAuthed, ensurePayFlow, async (req, res) => {
       enc_data,
       enc_info,
       ordr_mony: expectedAmount,
-      pay_type: "PACA",
-      // ordr_no: orderId, // 필요 시 주문번호 검증 활성화
+      pay_type: pay_type,
     };
 
     if (process.env.DEBUG_KCP) {
@@ -172,8 +187,7 @@ router.post("/kcp/pay", ensureAuthed, ensurePayFlow, async (req, res) => {
       console.log("[KCP] res_cd:", data?.res_cd, "res_msg:", data?.res_msg);
     }
 
-    // 성공
-    if (data?.res_cd === "0000") {
+    if (data?.res_cd === "0000" && data?.tno) {
       req.session.paid = true;
       const next = meta.next || "/talk";
       delete req.session.payMeta;
