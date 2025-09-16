@@ -208,13 +208,7 @@ input::placeholder {
   justify-content: center;
   font-weight: 700;
 }
-.message .bubble {
-  background: #ffffff;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 10px 12px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-}
+
 .message .text {
   white-space: pre-wrap;
   word-break: break-word;
@@ -335,4 +329,40 @@ input::placeholder {
   .pay-card .pay-actions {
     flex-direction: column;
   }
+}
+
+
+.message .bubble {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+/* 말풍선 내부에 붙는 작~은 리사이즈 핸들 */
+.message .bubble {
+  position: relative;
+  box-sizing: border-box;
+} /* 레이아웃 안정화 */
+.message .bubble .resizer {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  width: 14px;
+  height: 14px;
+  cursor: se-resize;
+  opacity: 0.25;
+  user-select: none;
+  pointer-events: auto;
+}
+.message .bubble .resizer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-right: 2px solid #bbb;
+  border-bottom: 2px solid #bbb;
+  border-radius: 0 0 3px 0;
+}
+.message .bubble:hover .resizer {
+  opacity: 0.5;
 }

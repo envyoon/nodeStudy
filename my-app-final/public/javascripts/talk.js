@@ -94,6 +94,127 @@ const upsertUserPaid = ({ email, id }, paid = true) => {
  *********************************************************************************/
 
 /*********************************************************************************
+ * ===================== [START] 말풍선 Resize 관찰 유틸 ============================
+ *********************************************************************************/
+
+// 말풍선 하이라이트(잠깐 색 → 자동 원복)
+const __bubbleFlashTimers = new WeakMap();
+const flashBubble = (el, color = "#FFF3A6", ms = 350) => {
+  if (!el) return;
+  el.style.transition = el.style.transition || "background-color 120ms ease";
+  el.style.backgroundColor = color;
+  const old = __bubbleFlashTimers.get(el);
+  if (old) clearTimeout(old);
+  __bubbleFlashTimers.set(el, t);
+};
+
+const makeBubbleResizable = (bubble) => {
+  if (!bubble) return;
+  if (bubble.querySelector(".resizer")) return;
+
+  // 버블이 포지셔닝 기준이 되도록 (디자인 깨지지 않음)
+  if (!bubble.style.position) bubble.style.position = "relative";
+  if (!bubble.style.boxSizing) bubble.style.boxSizing = "border-box";
+
+  // 핸들 추가 + 최소한의 스타일(보더만 보이게)
+  const handle = document.createElement("span");
+  handle.className = "resizer";
+  Object.assign(handle.style, {
+    position: "absolute",
+    right: "6px",
+    bottom: "4px",
+    width: "14px",
+    height: "14px",
+    cursor: "se-resize",
+    opacity: "0.35",
+    userSelect: "none",
+    pointerEvents: "auto",
+    // 핸들 표시(대각선) — CSS 없이도 보이도록
+    borderRight: "2px solid #bbb",
+    borderBottom: "2px solid #bbb",
+    borderBottomRightRadius: "2px",
+  });
+  bubble.appendChild(handle);
+
+  const MIN_W = 120;
+  const MIN_H = 40;
+  const getMaxWidth = () => {
+    const list = document.getElementById("messages");
+    const pad = 64;
+    return list ? Math.max(160, list.clientWidth - pad) : 600;
+  };
+
+  let drag = null;
+
+  const onMove = (e) => {
+    if (!drag) return;
+    const p = e.touches ? e.touches[0] : e;
+    const dx = p.clientX - drag.startX;
+    const dy = p.clientY - drag.startY;
+
+    const w = Math.max(MIN_W, Math.min(getMaxWidth(), drag.startW + dx));
+    bubble.style.width = w + "px";
+
+    let h;
+    if (drag.withHeight) {
+      h = Math.max(MIN_H, drag.startH + dy);
+      bubble.style.height = h + "px";
+    }
+
+    // ▶ 크기 변화 방향에 따라 색 반짝임
+    const prevW = drag.prevW ?? drag.startW;
+    const prevH = drag.prevH ?? drag.startH;
+    const grew = w > prevW || (drag.withHeight && h > prevH);
+    const shrank = w < prevW || (drag.withHeight && h < prevH);
+    if (grew) flashBubble(bubble, "#FFF3A6"); // 커짐 → 노랑
+    if (shrank) flashBubble(bubble, "#C8FFD6"); // 작아짐 → 초록
+    drag.prevW = w;
+    if (drag.withHeight) drag.prevH = h;
+
+    e.preventDefault();
+  };
+
+  const stop = () => {
+    if (!drag) return;
+    drag = null;
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", stop);
+    document.removeEventListener("touchmove", onMove, { passive: false });
+    document.removeEventListener("touchend", stop);
+    document.body.style.userSelect = "";
+  };
+
+  const start = (e) => {
+    const p = e.touches ? e.touches[0] : e;
+    drag = {
+      startX: p.clientX,
+      startY: p.clientY,
+      startW: bubble.offsetWidth,
+      startH: bubble.offsetHeight,
+      withHeight: e.shiftKey || (e.touches && e.touches.length === 2),
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", stop);
+    document.addEventListener("touchmove", onMove, { passive: false });
+    document.addEventListener("touchend", stop);
+    document.body.style.userSelect = "none";
+    e.preventDefault();
+  };
+
+  handle.addEventListener("mousedown", start);
+  handle.addEventListener("touchstart", start, { passive: false });
+
+  bubble.addEventListener("dblclick", () => {
+    bubble.style.width = "";
+    bubble.style.height = "";
+  });
+};
+
+/*********************************************************************************
+ * ====================== [END] 말풍선 Resize 관찰 유틸 =============================
+ *********************************************************************************/
+
+/*********************************************************************************
  * ======================= [START] 연결 상태 / 프레즌스 UI ==========================
  *********************************************************************************/
 
@@ -154,6 +275,8 @@ const appendMessage = ({ text, me = false, who = "?", time = nowHHMM() }) => {
   li.appendChild(bubble);
   list.appendChild(li);
   list.scrollTop = list.scrollHeight;
+  // observeMessageBubble(bubble);
+  makeBubbleResizable(bubble);
 };
 
 /** 입력창 자동 높이 */
@@ -586,6 +709,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   appendMessage({ text: "채팅에 오신 걸 환영합니다!", who: "System" });
 });
+
 
 /*********************************************************************************
  * ============================= [END] 초기화 / 바인딩 =============================
