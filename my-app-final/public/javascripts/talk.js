@@ -105,7 +105,7 @@ const flashBubble = (el, color = "#FFF3A6", ms = 350) => {
   el.style.backgroundColor = color;
   const old = __bubbleFlashTimers.get(el);
   if (old) clearTimeout(old);
-  __bubbleFlashTimers.set(el, t);
+  __bubbleFlashTimers.set(el);
 };
 
 const makeBubbleResizable = (bubble) => {
